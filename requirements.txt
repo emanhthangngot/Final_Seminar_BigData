@@ -1,0 +1,12 @@
+streamlit>=1.32.0
+langchain>=0.1.13
+langchain-community>=0.0.29
+openai>=1.14.2
+plotly>=5.20.0
+pandas>=2.2.1
+python-dotenv>=1.0.1
+pypdf>=4.1.0
+tiktoken>=0.6.0
+qdrant-client>=1.8.0
+weaviate-client>=4.5.3
+pymilvus>=2.3.6
