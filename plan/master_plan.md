@@ -1,119 +1,134 @@
-# BẢN KẾ HOẠCH TỔNG THỂ (MASTER PLAN)
+# Kế hoạch Tổng thể (Master Plan) - RAG Benchmarking Project
 
-## 1. Bối cảnh dự án & Kiến thức nền tảng (Knowledge Base)
-Dự án này tập trung xây dựng một hệ thống **Retrieval-Augmented Generation (RAG)** tiên tiến, được thiết kế không chỉ để tạo ra một ứng dụng Hỏi & Đáp tài liệu, mà còn để đặt 3 hệ quản trị Vector Database hàng đầu hiện nay: **Qdrant**, **Weaviate**, và **Milvus** lên bàn cân so sánh (Benchmarking) một cách thực chứng nhất.
+- **Phạm vi:** So sánh hiệu năng (Benchmarking) 3 hệ quản trị Vector Database: **Qdrant**, **Weaviate**, và **Milvus** dựa trên kiến trúc Retrieval-Augmented Generation (RAG). Hệ thống phải xử lý được tệp PDF, thực hiện chunking, embedding và truy vấn context để LLM trả lời.
+- **Không bao gồm:** Các dịch vụ Cloud trả phí (OpenAI, Pinecone), các mô hình LLM trực tuyến để đảm bảo tính an toàn dữ liệu, quyền riêng tư và chi phí vận hành 0đ.
 
-Để đạt được điểm số tuyệt đối, toàn bộ đội ngũ kỹ sư phải thấu hiểu sâu sắc các khái niệm lõi sau:
-- **Vector Database vs CSDL Truyền Thống:** RDBMS (SQL) hay Document DB (MongoDB) lưu trữ dữ liệu theo hàng/cột hoặc JSON, được tối ưu hoá cho truy vấn "khớp chính xác" (exact match). Trong khi đó, hệ thống AI cần hiểu được "ngữ nghĩa". Chữ "Chó" và chữ "Mèo" không hề giống nhau về mặt ký tự, nhưng lại rất gần nhau về mặt ngữ nghĩa (đều là thú cưng). Vector DB ra đời để sinh ra, lưu trữ và lập chỉ mục các toạ độ không gian đa chiều (thường là 1536 chiều với model của OpenAI) này.
-- **Quy trình Embedding:** Là quá trình biến đổi dữ liệu phi cấu trúc (Văn bản PDF, Word, Ảnh) thành các mảng số thực (Float Arrays). Vectơ càng giống nhau thì dữ liệu gốc mang ý nghĩa càng tương đồng.
-- **Thước đo độ tương đồng (Similarity Metrics):**
-  - *Cosine Similarity:* Đo lường góc giữa hai vectơ. Đây là thước đo phổ biến và chuẩn xác nhất cho text embedding vì nó bỏ qua độ dài (độ lớn) của vectơ mà chỉ quan tâm tới chiều hướng ngữ nghĩa.
-  - *Euclidean Distance (L2):* Khoảng cách vật lý đoạn thẳng giữa hai điểm trong không gian. Thường dùng cho các model embedding âm thanh hoặc hình ảnh chuyên biệt.
-  - *Dot Product (Tích vô hướng):* Nếu các vectơ đã được chuẩn hoá (Normalized), Dot Product trả về kết quả y hệt Cosine nhưng có tốc độ tính toán phần cứng nhanh hơn nhiều.
-- **Thuật toán Approximate Nearest Neighbor (ANN):** Tìm kiếm rà soát toàn bộ DB (K-Nearest Neighbor) là quá chậm. Vector DB sử dụng ANN để hy sinh một chút độ chính xác (khoảng 1-2%) nhằm đổi lấy tốc độ truy vấn tăng hàng ngàn lần. Cụ thể nhóm sẽ phân tích thuật toán cấu trúc đồ thị **HNSW (Hierarchical Navigable Small World)** đang được Qdrant và Milvus sử dụng làm cốt lõi.
+## Danh sách thành viên
 
-### Phương pháp Benchmarking
-Để slide có tính thuyết phục tuyệt đối, chúng ta đo lường:
-1. **Ingestion Time (Thời gian Nạp Dữ Liệu):** Đẩy 1 file PDF học thuật dài 500 trang qua chuẩn hoá và đo xem DB nào tiếp nhận và lập chỉ mục (Index) nhanh nhất tính bằng mili-giây (ms).
-2. **Query Latency (Độ trễ Truy Vấn):** Thời gian cần thiết kể từ khi gửi câu hỏi đến khi DB trả về Top 5 đoạn văn bản tương đồng nhất.
-3. **Resource Consumption (Tài nguyên Tiêu thụ):** Sử dụng OS command `docker stats` chụp lại sự thay đổi biến thiên của RAM (Memory) và CPU giữa lúc DB rảnh rỗi và lúc đang bị đẩy tải rà soát.
-4. **Developer Experience (Trải nghiệm Dev):** Độ khó/Dễ của bộ SDK Python đi kèm mỗi DB.
+| Mã | Mã số sinh viên | Họ và tên | Vai trò chính | Kỹ năng bổ trợ |
+| :--- | :--- | :--- | :--- | :--- |
+| A | 23120099 | Lê Xuân Trí | RAG Architect & Frontend UI/UX | Python Streamlit, LangChain, CSS |
+| B | 23120185 | Nguyễn Hồ Anh Tuấn | Weaviate Database Specialist | Docker, Golang Patterns, gRPC |
+| C | 23120166 | Trần Hữu Kim Thành | Milvus Database Specialist | C++ Core Logic, etcd, Distributed Systems |
+| D | 23120165 | Trần Lê Trung Trực | Qdrant Database Specialist | Rust Performance, Vector Algebra, API Design |
+
+## Phân công chi tiết theo giai đoạn (Detailed Timeline)
+
+### Giai đoạn 1 - Thiết lập Hạ tầng và Ingestion Pipeline (Tuần 1)
+
+| Thành viên | Image Processing (Optional) | Database Setup & Configuration | Embedding & Logic Implementation |
+| :--- | :--- | :--- | :--- |
+| **A** | Nghiên cứu trích xuất bảng từ PDF | Khởi tạo repo GitHub & CI/CD cơ bản | Viết `processor.py`, tích hợp Ollama API (Embeddings) |
+| **B** | | Container hóa Weaviate (port 8080) | Thiết lập Schema `RAGDocument` và kết nối gRPC |
+| **C** | | Deploy Milvus Standalone (etcd/minio) | Tạo Collection, định nghĩa Field (dim=768) |
+| **D** | | Cài đặt Qdrant với Volume Persistence | Khởi tạo Collection, cấu hình Distance Metric (Cosine) |
+
+### Giai đoạn 2 - Phát triển CRUD và Tích hợp RAG (Tuần 2)
+
+| Thành viên | UI/Orchestration Development | Data Insertion (Batching CRUD) | Search Strategy & ANN Optimization |
+| :--- | :--- | :--- | :--- |
+| **A** | Layout Streamlit (Tabs, Sidebar, Config) | Điều phối luồng dữ liệu từ PDF -> DB | Xây dựng Prompt Template, gọi LLM Qwen3.5 |
+| **B** | | Triển khai `collection.batch.dynamic()` | Tối ưu truy vấn `nearVector` qua gRPC |
+| **C** | | Viết logic `insert()` và `collection.flush()` | Cấu hình `HNSW` index (M=16, ef=64) |
+| **D** | | Implement `client.upload_points()` | Tối ưu Payload filtering và `Cosine` search |
+
+### Giai đoạn 3 - Benchmarking thực nghiệm & Stress Test (Tuần 3)
+
+| Thành viên | Metrics Collection (Latency/Throughput) | System Monitoring (CPU/RAM/IO) | Analytics & Visualization |
+| :--- | :--- | :--- | :--- |
+| **A** | Đo tổng thời gian luồng RAG (End-to-End) | Tổng hợp dữ liệu thô vào `metrics.csv` | Phát triển Dashboard so sánh bằng Plotly/Altair |
+| **B** | Đo `weaviate_ingest_ms` / 1000 vectors | Ghi nhận RAM usage của Weaviate (Go) | Phân tích hiệu quả của Batching |
+| **C** | Đo `milvus_ingest_ms` / 1000 vectors | Monitor etcd/milvus-standalone resource | Phân tích RAM Spike khi gọi `load()` |
+| **D** | Đo `qdrant_ingest_ms` / 1000 vectors | Kiểm chứng RAM cực thấp của Qdrant (Rust) | Phân tích độ ổn định của search latency |
+
+### Giai đoạn 4 - Báo cáo, Đóng gói & Seminar (Tuần 4)
+
+- **Cả nhóm:** Viết báo cáo học thuật (PDF) phân tích chi tiết ưu nhược điểm của 3 kiến trúc (Go vs C++ vs Rust).
+- **A & B:** Thiết kế Slide thuyết trình tập trung vào kết quả thực nghiệm.
+- **C & D:** Quay video Live Demo chứng minh hệ thống hoạt động ngay cả khi ngắt kết nối mạng.
 
 ---
 
-## 2. Kiến trúc Hệ Thống Dữ Liệu (System Architecture)
-Hệ thống được thiết kế theo mô hình Micro-Architecture, chia tách lớp (Layer) hoàn toàn độc lập giúp dễ dàng tráo đổi (swap) giữa 3 DB mà không làm sập Logic của web.
-1. **Frontend UI Layer:** Giao diện Streamlit xử lý việc upload file PDF, thanh Sidebar chọn DB, và các biểu đồ phân tích tương tác.
-2. **Data Processing Pipeline:** LangChain nhận file, dùng thuật toán `RecursiveCharacterTextSplitter` chặt cắt dữ liệu dài thành các Chunk (khoảng 1000 ký tự) đan xen nhau (overlap 200 ký tự) để giữ nguyên văn cảnh.
-3. **Database Abstraction Layer:** Tất cả các thao tác gọi tới Qdrant/Weaviate/Milvus đều phải chui qua một interface chuẩn `BaseVectorDB`, đảm bảo tính thống nhất trong code base.
-4. **Retrieval & LLM Binding:** Câu hỏi người dùng được embedding -> Pass qua DB interface -> Trả về context -> Nhồi context này cùng user query vào Prompt Template -> Đẩy lên OpenAI API/Ollama để sinh ra câu trả lời cuối cùng bằng ngôn ngữ tự nhiên.
+## Đầu ra mong đợi (Detailed Deliverables)
+
+### Phần 1 - Hệ thống RAG Core & UI (Thành viên A)
+
+| Yêu cầu | Sản phẩm bàn giao cụ thể | Chỉ số đánh giá kỹ thuật |
+| :--- | :--- | :--- |
+| `processor.py` | Class xử lý PDF đa luồng, hỗ trợ Tiếng Việt | `chunks_count` > 0, `avg_len` ~ 1000 chars |
+| `app.py` | Dashboard Streamlit hoàn chỉnh, mượt mà | Load time < 2s, Trạng thái DB luôn đồng nhất |
+| Embedding | Vector 768 chiều ổn định, chuẩn hóa | `vector_dim=768`, 100% khớp model `nomic-embed-text` |
+
+### Phần 2 - Vector Databases Benchmarking (Thành viên B, C, D)
+
+| Database | Mục tiêu kỹ thuật tối thiểu | Chỉ số đo lường thực tế |
+| :--- | :--- | :--- |
+| **Weaviate** | Hoạt động qua gRPC, không lỗi Batch | `latency_ms` (mean/p95), `memory_usage_mb` |
+| **Milvus** | Search thành công sau khi Load, Index Ready | `ingest_speed` (vectors/sec), `cpu_utilization` |
+| **Qdrant** | Search với metadata filtering, RAM ổn định | `search_latency_ms`, `ram_at_idle_vs_peak` |
+
+### Tiêu chí chung cho Benchmarking
+
+- Sử dụng `@time_profiler` cho mọi phương thức `insert` và `search`.
+- Dữ liệu `metrics.csv` phải bao gồm: `timestamp`, `database`, `operation`, `duration_ms`, `ram_usage_mb`.
+- Biểu đồ phải tương tác được: Cho phép lọc theo từng DB hoặc so sánh trực diện.
 
 ---
 
-## 3. Cấu trúc Codebase Chuẩn Hóa
-Toàn bộ dự án phải tuân thủ nghiêm ngặt Folder Structure sau:
+## Quản lý Rủi ro & Giải pháp (Risk Management)
+
+| Rủi ro | Mức độ | Giải pháp phòng ngừa |
+| :--- | :--- | :--- |
+| Tràn RAM khi chạy 3 DB | **Cao** | Thiết lập `mem_limit` trong Docker Compose, tắt DB không sử dụng. |
+| Treo Ollama khi nạp hàng loạt | **Trung bình** | Implement cơ chế `backoff/retry` và nạp theo batch nhỏ (50 vectors). |
+| Sai dimension vector (768) | **Nghiêm trọng** | Thêm hàm `assert len(vector) == 768` ngay sau bước embedding. |
+| Mất dữ liệu khi DB Restart | **Trung bình** | Luôn khai báo `volumes` map ra folder đĩa host trong Docker. |
+
+---
+
+## Quy tắc Branching và Commit chuyên nghiệp
+
+- **Branching Rule:** `task/<phase>/<mem_id>/<feature_short>` (VD: `task/G2/memD/qdrant-ann`).
+- **Review Policy:** Ít nhất 1 thành viên khác phải approve Pull Request trước khi merge.
+- **Commit Format:** `[DB_NAME] Action: Description` (VD: `[MILVUS] Fix: Resolve collection load timeout`).
+
+## Yêu cầu về code & Môi trường
+
+- **Python Version:** 3.11 (Yêu cầu bắt buộc để đảm bảo tương thích thư viện).
+- **Virtual Env:** Sử dụng `venv` hoặc `conda`. Không cài library global.
+
+### Cấu trúc thư mục `src` (Mở rộng)
+
 ```text
-project/
-├── docker-compose.yml         # Thiết lập container cho cả 3 DB
-├── requirements.txt           # Quản lý Package (Streamlit, Langchain, PyMilvus, Weaviate, Qdrant...)
-├── src/
-│   ├── app.py                 # File chạy chính của Giao diện
-│   ├── data_ingestion/
-│   │   └── processor.py       # Nơi chứa hàm băm/chặt/đọc file PDF
-│   ├── db_clients/
-│   │   ├── base_client.py     # Nơi định nghĩa Abstract Interface bắt buộc cho A,B,C,D
-│   │   ├── qdrant_client.py   # Lớp xử lý riêng của Person D
-│   │   ├── weaviate_client.py # Lớp xử lý riêng của Person B
-│   │   └── milvus_client.py   # Lớp xử lý riêng của Person C
-│   └── benchmark/
-│       └── monitor.py         # Hàm đếm giờ, lưu csv, vẽ biểu đồ
+src/
+├── app.py                 # Streamlit UI & Dashboard Logic
+├── config.py              # Định nghĩa Constants, Ports, Model Names
+├── data_ingestion/
+│   ├── processor.py       # Xử lý PDF & Chunking
+│   └── embedder.py        # Giao tiếp Ollama Embedding API
+├── db_clients/
+│   ├── base.py            # Abstract Base Class (ABC)
+│   ├── qdrant.py          # Implement D
+│   ├── weaviate.py        # Implement B
+│   └── milvus.py          # Implement C
+├── benchmark/
+│   ├── profiler.py        # Decorator & Logging Utils
+│   └── data/              # Folder chứa metrics.csv & raw history
+└── utils/
+    ├── logger.py          # Tập trung quản lý logs hệ thống
+    └── helpers.py         # Các hàm xử lý chuỗi, định dạng số
 ```
 
-**Ví dụ thiết kế Interface bắt buộc (Design Pattern):**
-```python
-from abc import ABC, abstractmethod
+## Đảm bảo tính Reproducibility & Security
 
-class BaseVectorDB(ABC):
-    @abstractmethod
-    def connect(self): 
-        '''Khởi tạo kết nối tới Docker Instance và định nghĩa/tạo Database Schema'''
-        pass
-    
-    @abstractmethod
-    def insert(self, chunks: list, embeddings: list, metadata: list): 
-        '''Nhận list text và list mảng float, ép kiểu và đẩy qua network tới DB'''
-        pass
-    
-    @abstractmethod
-    def search(self, query_embedding: list, top_k: int) -> list: 
-        '''Trả về đúng định dạng danh sách các cụm chuỗi text matching nhất'''
-        pass
-```
+- **Fixed Seed:** Tuyệt đối không để độ ngẫu nhiên ảnh hưởng kết quả benchmark.
+- **Config file:** Tách biệt `config.py` để không hardcode API endpoints.
 
----
+## Tập dữ liệu thực nghiệm
 
-## 4. Lộ trình Triển khai (Timeline 4 Tuần)
-
-### Tuần 1: Cấu trúc hạ tầng & Xây dựng Pipeline Nạp Data (Ingestion)
-**Mục tiêu:** Cả 4 thành viên phải run thành công môi trường Local. Project có thể băm nhỏ PDF và đẩy Dữ liệu nộm (Dummy data) thành công vào cả 3 DBs không sinh lỗi.
-- **Phiên 1.1:** Setup Github Repo. Định hình `docker-compose.yml` nhét cả 3 ông tướng Milvus, Weaviate, Qdrant vào chạy song song. Map Port cẩn thận tránh đụng nhau.
-- **Phiên 1.2:** Định nghĩa Base Class Interface. Implement Langchain components đọc PDF thành String List.
-- **Phiên 1.3:** Các bạn DB (B, C, D) code phần `connect()` của base class tương ứng với từng tool.
-- **Phiên 1.4:** Code hàm `insert()` hoàn chỉnh. Chạy file python test lưu lượng xem file PDF đã vào DB thực chưa thông qua UI của DB đó.
-
-### Tuần 2: Xây dụng Giao diện RAG & Analytics UI (ĐỘC QUYỀN PERSON A)
-**Mục tiêu:** Person A (Trí) thiết kế toàn bộ App Streamlit. Người dùng có thể nhấn nút, chọn tool và chat.
-- **Phiên 2.1:** Chia cột (layout) Streamlit. Tạo Slider/Dropdown Sidebar.
-- **Phiên 2.2:** Tích hợp file Uploader, hook vào hàm `processor.py` để xử lý ngay trên UI.
-- **Phiên 2.3:** Dựng form Chat, móc nối lịch sử `session_state`. Tạm thời echo lại lời user cho tới khi backend query xong.
-- **Phiên 2.4:** Thiết kế giao diện Expander "Báo cáo Benchmark", gọi thư viện Plotly Express để ăn các data CSV (Đang để dummy) chập thành biểu đồ.
-
-### Tuần 3: Tích hợp Thuật toán Tìm Kiếm & Lấy Metric (ĐỘC QUYỀN PERSON B, C, D)
-**Mục tiêu:** Hoàn thiện 100% logic Tìm kiếm, nối Chatbot AI vào, và vắt kiệt phần cứng để lấy các con số mili-giây hiệu năng.
-- **Phiên 3.1:** Từng DB Specialist hoàn thành hàm `search()`. Khởi tạo HNSW Index và viết mapping để lấy mảng Float lọc ra câu chữ (Text Payload).
-- **Phiên 3.2:** Tích hợp Context lấy được ở 3.1 vào thẳng hàm RAG Prompt, đưa lên OpenAI. Test chat bot hỏi câu hỏi bất kỳ, đảm bảo kiến thức lấy đúng từ PDF.
-- **Phiên 3.3:** Viết hàm Timer Profile (đo thời gian). Chạy vòng lặp 100 câu query để ra latency trải đều. Đổ dữ liệu xuất ra `benchmark/metrics.csv`.
-- **Phiên 3.4:** Đọc OS log RAM qua Terminal, chụp ảnh màn hình hiện trạng bộ test.
-
-### Tuần 4: Đóng gói Báo cáo & Luyện tập Thuyết trình (Toàn team)
-**Mục tiêu:** Báo cáo bản cứng, Slideshow và chuẩn bị phản biện xuất sắc.
-- **Phiên 4.1:** Test E2E toàn bộ hệ thống. Trí đẩy code cuối lên Github.
-- **Phiên 4.2:** Viết Report theo đúng format Word (10-15 trang, Times New Roman, dãn dòng 1.5).
-- **Phiên 4.3:** Làm Slide (30 phút total): 5p Giới thiệu (Vấn đề DB cũ), 10p mổ xẻ kiến trúc 3 con, 10p show Demo Video & Phân tích Biểu đồ Benchmark, 5p Q&A.
-- **Phiên 4.4:** Zip Source Code, viết `README.md` cài đặt một cú click `docker compose up`, nộp bài.
-
----
-
-## 5. Quy tắc Quản lý Rủi ro & Fallback
-- **Tuần 1 (Đụng chạm Port Docker):** Milvus chiếm port `19530`, Weaviate chiếm `8080`, Qdrant chiếm `6333`. Phải set explicitly trong Compose file. Nếu máy ảo/laptop RAM thấp, hạ cấu hình container.
-- **Tuần 2 (Streamlit Reload):** Streamlit chạy lại code từ đầu sau mỗi cú click. Nếu mất API Key hoặc DB Connection bị reset, lập tức dùng cờ `@st.cache_resource` để khóa bộ nhớ đối tượng kết nối.
-- **Tuần 3 (Rate Limit OpenAI):** Nếu đẩy file 500 trang đi Embedding, API OpenAI có thể bóp băng thông (Rate limit 429). Giải pháp: Dùng `HuggingFaceEmbeddings` chạy mô hình open-source siêu nhẹ tại máy cục bộ (như `all-MiniLM-L6-v2`) để test.
-- **Tuần 4 (Live Demo bị nổ tung):** Khởi tạo Docker DB trên giảng đường có thể tốn thời gian, hoặc mạng trường yếu gây đứt gãy API LLM. Khắc phục: YÊU CẦU quay màn hình toàn bộ thao tác RAG thành 1 video mp4 dài 2 phút gắn vào slide show.
-
----
-
-## 6. Danh sách Bàn Giao (Deliverables)
-- Cuối Tuần 1: Repo Github có cấu trúc xịn, file `docker-compose.yml` bật cái lên luôn 3 Engine.
-- Cuối Tuần 2: Ứng dụng Streamlit có thể chạy với UI đẹp mắt.
-- Cuối Tuần 3: Chatbot RAG trả lời chính xác và file `metrics.csv` điền đầy đủ dữ liệu thời gian.
-- Cuối Tuần 4: Slide nộp trước 3 ngày, Bản Báo cáo Word 15 trang cực kỳ hàn lâm nộp đúng Deadline.
+- **Nguồn:** 10 tệp PDF báo cáo Seminar Big Data các năm trước.
+- **Quy trình:**
+    1. Tải lên (Upload).
+    2. Kiểm tra tính hợp lệ (Validate).
+    3. Trích xuất text (Extract).
+    4. Gán ID nhãn (Labeling) để phục vụ đo lường độ chính xác retrieval.
