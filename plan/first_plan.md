@@ -21,9 +21,12 @@ Nghiên cứu kiến trúc và điểm mạnh độc tôn của từng tool:
 
 | Tiêu chí | Qdrant | Weaviate | Milvus |
 |--- |--- |--- |--- |
-| **Kiến trúc & Ngôn ngữ** | Viết bằng thư viện Rust => Siêu nhanh, tối ưu bộ nhớ. | Viết bằng Go => Dễ mở rộng và dùng trong môi trường microservices. | Lõi C++ & Go, chia nhỏ thành coordinator/worker => Sinh ra cho phân tán. |
-| **Tính năng "Ăn tiền"** | **Binary Quantization:** Thuật toán nén vector tới 40 lần nhưng giữ độ chính xác. Tối ưu Storage. | **Module Ecosystem:** Tích hợp trực tiếp các models (OpenAI, HuggingFace) rât rành mạch. Có multi-modal. | **GPU Acceleration:** Tăng tốc tìm kiếm bằng GPU (bản nâng cấp). Scale đến hàng Tỷ vector. |
-| **Dành cho ai?** | Khởi nghiệp, công ty cấu hình phần cứng eo hẹp cần tốc độ truy vấn cao nhất. | Dev muốn xây App AI cực nhanh, đỡ viết logic nhúng và tích hợp mô hình vì Weaviate lo hết. | Các hệ thống Enterprise khổng lồ, cần cluster siêu lớn. |
+| **Mã nguồn mở & Bản quyền** | Apache 2.0 | BSD-3 | Apache 2.0 |
+| **Bảng giá (Cloud/Self-host)**| Self-host hoàn toàn miễn phí. Qdrant Cloud có Free tier vĩnh viễn (1GB RAM, 1 node). | Self-host miễn phí vĩnh viễn. Sandbox Cloud Cloud trải nghiệm 14 ngày. | Self-host miễn phí. Zilliz Cloud cung cấp Free tier (2 collections, 1 triệu vectors max). |
+| **Độ phổ biến (Big Data)** | Đang nổi lên cực nhanh (~20K+ Github Stars), là xu hướng mới cho RAG siêu tốc tại các startup. | Rất phổ biến (~10K+ Stars), cộng đồng dev đông đảo, thường tích hợp sâu trong các AI framework. | Chuẩn công nghiệp Big Data (~27K+ Stars), dùng bởi các tập đoàn lớn (eBay, Shopee, Tencent...). |
+| **Kiến trúc & Ngôn ngữ** | Viết bằng thư viện Rust => Zero-cost abstraction, siêu nhanh, tối ưu bộ nhớ RAM sát ván. | Viết bằng Go => Dễ phân tán, quản lý bộ nhớ qua GC, tối ưu cực tốt cho môi trường microservices. | Lõi C++ & Go, chia nhỏ thành coordinator/worker/storage node => Kiến trúc phân tán (Distributed) thực thụ. |
+| **Tính năng "Ăn tiền"** | **Binary Quantization:** Thuật toán nén vector tới 40 lần nhưng giữ độ chính xác. Tối ưu Storage. | **Module Ecosystem:** Tích hợp trực tiếp các models (OpenAI, HuggingFace) rât rành mạch. Có multi-modal. | **GPU Acceleration:** Tăng tốc tìm kiếm bằng GPU (bản nâng cấp). Khả năng Scale đến hàng Tỷ vector. |
+| **Dành cho ai?** | Khởi nghiệp, công ty cấu hình phần cứng eo hẹp cần tốc độ truy vấn cao nhất. | Dev muốn xây App AI cực nhanh, đỡ viết logic nhúng và tích hợp mô hình vì Weaviate lo hết. | Các hệ thống Enterprise khổng lồ, cần cluster phân tán siêu lớn theo chuẩn Big Data. |
 
 ### 2.3. Khả năng ứng dụng thực tế
 - **Qdrant:** Hệ thống gợi ý sản phẩm thương mại điện tử dựa trên text description, hoặc nền tảng RAG (Retrieval-Augmented Generation) cá nhân hoá nhẹ, deploy dạng Docker tốn ít tài nguyên.
@@ -74,7 +77,8 @@ Nghiên cứu kiến trúc và điểm mạnh độc tôn của từng tool:
   + **10 phút nội dung lõi:** Lướt qua đặc trưng 3 ông tướng. (Dùng hình ảnh, ít chữ!).
   + **10 phút Demo & Showcase Benchmark:** Mở video dự án đã quay sẵn (Tránh show live bị sập lỗi), giải thích kết quả so sánh Ingestion, Latency, RAM.
   + **5 phút kết luận:** Recommend dùng tool nào, lúc nào.
-- **Viết Báo cáo Word:** Tập hợp kiến thức nghiên cứu được vào khung 10-15 trang; Đưa các biểu đồ đã đo ra từ app code vào giải thích chuyên sâu. Report này sẽ là 1 Technical Paper thực thụ.
+- **Viết Báo cáo Word:** Tập hợp kiến thức nghiên cứu được vào khung 10-15 trang; Bắt buộc phải trình bày **Sơ đồ Kiến trúc hệ thống (Architecture Diagram)** của 3 DB để so sánh chuyên sâu. Đưa các biểu đồ đã đo ra từ app code vào giải thích chuyên sâu. Report này sẽ là 1 Technical Paper thực thụ.
+- **Lưu ý Thuyết trình/Demo:** Nêu bật các thông số License/Pricing. Đi TRỰC TIẾP vào demo chức năng chính (RAG Chatbot, Benchmarking). TUYỆT ĐỐI KHÔNG đưa phần cấu hình/cài đặt (System setup/Docker) lên Slide hoặc Video demo để tiết kiệm thời gian, phần đó chỉ để trong Phụ lục báo cáo.
 - Nộp Slide trước 3 ngày.
 
 ### Tuần 4: Thử nghiệm thực tế & Chuẩn bị Q&A

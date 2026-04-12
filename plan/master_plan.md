@@ -43,9 +43,12 @@
 
 ### Giai đoạn 4 - Báo cáo, Đóng gói & Seminar (Tuần 4)
 
-- **Cả nhóm:** Viết báo cáo học thuật (PDF) phân tích chi tiết ưu nhược điểm của 3 kiến trúc (Go vs C++ vs Rust).
-- **A & B:** Thiết kế Slide thuyết trình tập trung vào kết quả thực nghiệm.
-- **C & D:** Quay video Live Demo chứng minh hệ thống hoạt động ngay cả khi ngắt kết nối mạng.
+- **Cả nhóm:** Viết báo cáo học thuật (PDF) phân tích chi tiết:
+  - Bổ sung **Sơ đồ kiến trúc tổng quan (Architecture Diagram)** cho từng CSDL.
+  - Bổ sung thông tin đối chiếu về bản quyền (Open-source License), Bảng giá (Pricing), độ phổ biến (Community Stars) trong mảng Big Data.
+  - Phân tích sâu ưu nhược điểm của 3 kiến trúc (Go vs C++ vs Rust) thông qua giải thích biểu đồ thực nghiệm.
+- **A & B:** Thiết kế Slide thuyết trình tập trung vào tính tương phản (Trade-offs) và kết quả Benchmark.
+- **C & D:** Quay video Live Demo mạch lạc, chỉ trình diễn tính năng chính. **Tuyệt đối không gộp bước cài đặt/config vào phần demo.**
 
 ---
 
