@@ -21,3 +21,13 @@ class BaseVectorDB(ABC):
     def search(self, query_embedding: List[float], top_k: int = 5) -> List[str]:
         """Search for Approximate Nearest Neighbors (ANN)."""
         pass
+
+    @abstractmethod
+    def search_hybrid(self, query_text: str, query_embedding: List[float], filters: Dict[str, Any] = None, top_k: int = 5) -> List[str]:
+        """Search using a combination of dense vectors and optional metadata filtering or sparse search."""
+        pass
+        
+    @abstractmethod
+    def reset_collection(self) -> None:
+        """Clear all data in the collection for a fresh benchmark."""
+        pass
