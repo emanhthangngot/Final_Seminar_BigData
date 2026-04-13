@@ -12,7 +12,7 @@
 - Nghiên cứu Schema trong Weaviate để thiết lập Collection chuẩn `RAGDocument` quy định cụ thể kiểu dữ liệu lưu trữ Text và Vector.
 
 ### Tuần 2: Xử lý Tích Hợp (Ingestion Pipeline)
-- Viết abstract implementer trong file Python `db_clients/weaviate.py`.
+- Viết abstract implementer trong file Python `src/core/db_clients/weaviate.py`.
 - Lập trình thực hiện tối ưu thao tác Vector hoá lưu bằng Batch Data `collection.batch.dynamic()` giúp hạn chế tắc nghẽn IO. 
 - Xây dựng hàm tìm kiếm ANN Query ưu việt dựa vào đặc tính tối ưu của `nearVector` gọi hoàn toàn qua client gRPC từ Python SDK.
 
@@ -29,4 +29,4 @@
 ## 3. Chỉ số Kỹ thuật Cần Đạt (KPIs)
 - Kết nối thành công hệ thống python qua giao thức gRPC không báo lỗi time-out khi upload dữ liệu lớn.
 - Báo cáo rõ ràng hai chỉ tiêu: `latency_ms` cho từng thao tác search, cấu trúc `memory_usage_mb` tiêu hao khi hệ thống rảnh rỗi và đang nạp dữ liệu.
-- Phải đảm bảo bảo toàn dữ liệu bằng Docker Volumes để Weaviate khi tái sinh không bị format trắng bộ nhớ.
+- Phải đảm bảo bảo toàn dữ liệu bằng Docker Volumes tại `./volumes/weaviate_data` để Weaviate khi tái sinh không bị format trắng bộ nhớ.

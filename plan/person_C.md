@@ -12,7 +12,7 @@ Sắm vai Chuyên gia nền tảng về hệ CSDL Vector **Milvus**. Vận hành
 - Khởi tạo client Python, tạo Collection mẫu, sau đó mapping Schema trường thông tin đặc thù của Milvus (Id kiểu `Int64`, Embeddings kiểu `FloatVector`, quy chuẩn `dim=768`).
 
 ### Tuần 2: Rút gọn CRUD & Chuẩn bị Query Vector
-- Triển khai tệp mã nguồn chuyên dụng `db_clients/milvus.py` tích hợp chuẩn giao tiếp hệ thống.
+- Triển khai tệp mã nguồn chuyên dụng `src/core/db_clients/milvus.py` tích hợp chuẩn giao tiếp hệ thống.
 - Cài đặt hệ thống lệnh nạp luồng qua hàm `insert()`. Vận hành linh hoạt hành động `collection.flush()` bắt buộc phải có để niêm phong đoạn dữ liệu đĩa sau khi tải xuống. 
 - Tìm hiểu cấu hình tinh chỉnh thông số HNSW Index (ví dụ: tham số M=16, efConstruction=64) để tăng hiệu suất truy vấn gần nhất. Gọi thao tác `collection.load()` - 1 thủ tục bắt buộc ở Milvus nhằm kéo dữ liệu Index từ SSD lên RAM phục vụ truy vấn tối đa công năng.
 
@@ -29,4 +29,4 @@ Sắm vai Chuyên gia nền tảng về hệ CSDL Vector **Milvus**. Vận hành
 ## 3. Chỉ số Kỹ thuật Cần Đạt (KPIs)
 - Hoàn thiện lập chỉ mục, việc Search() diễn ra phản hồi bình thường sau thủ tục Load(), hệ thống hiển thị rành mạch `Index Ready`.
 - Cung cấp chính xác biến đo lường tốc độ tính theo `vectors/sec`, tính toán rạch ròi tỉ lệ ăn CPU theo core khi thực thi truy vấn HNSW.
-- Lưu ý rủi ro tài nguyên Milvus có thể yêu cầu nhiều GB disk và Ram, phải set limit memory trên yaml hợp logic.
+- Lưu ý rủi ro tài nguyên Milvus có thể yêu cầu nhiều GB disk và Ram (tại `./volumes/milvus_data`), phải set limit memory trên yaml hợp logic.

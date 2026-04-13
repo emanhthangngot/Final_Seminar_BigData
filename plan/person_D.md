@@ -8,11 +8,11 @@
 ## 2. Phân công chi tiết (Detailed Timeline)
 
 ### Tuần 1: Setup Môi trường Storage
-- Cài đặt Container đơn cấu trúc của Qdrant trên local bằng lệnh cấu hình Docker. Định nghĩa rõ Volume persistence sao cho Vector ghi được lưu dải chặt xuống Folder System host chứ không bay hơi khi Restart.
+- Cài đặt Container đơn cấu trúc của Qdrant trên local bằng lệnh cấu hình Docker. Định nghĩa rõ Volume persistence tại `./volumes/qdrant_data` sao cho Vector ghi được lưu dải chặt xuống Folder System host chứ không bay hơi khi Restart.
 - Tạo một kết nối thử thông qua Python client `qdrant-client` kiểm tra quyền Collection Management. Đính kèm khoảng cách phương pháp đo toán học bắt buộc `Distance.COSINE` vào cho `dim=768`.
 
 ### Tuần 2: Xử lý Payload và API Upload
-- Thể hiện sự nhất quán thông qua việc design pattern trong class `db_clients/qdrant.py`.
+- Thể hiện sự nhất quán thông qua việc design pattern trong class `src/core/db_clients/qdrant.py`.
 - Tối ưu chu trình lưu trữ, tận dụng phương thức API `client.upload_points()` chuyên biệt của Qdrant, đẩy batching payload/metadata kèm với Vector thông tin cực nhanh từ LangChain TextSplitter.
 - Xử lý mượt mà tác vụ query. Viết bổ sung chức năng Payload Filtering (truy vấn kết hợp vector và điều kiện metadata như nguồn của document hoặc ID tài liệu) giúp RAG được gọn gàng tránh nhầm lẫn text context.
 

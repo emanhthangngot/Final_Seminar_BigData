@@ -85,7 +85,7 @@
 | Tràn RAM khi chạy 3 DB | **Cao** | Thiết lập `mem_limit` trong Docker Compose, tắt DB không sử dụng. |
 | Treo Ollama khi nạp hàng loạt | **Trung bình** | Implement cơ chế `backoff/retry` và nạp theo batch nhỏ (50 vectors). |
 | Sai dimension vector (768) | **Nghiêm trọng** | Thêm hàm `assert len(vector) == 768` ngay sau bước embedding. |
-| Mất dữ liệu khi DB Restart | **Trung bình** | Luôn khai báo `volumes` map ra folder đĩa host trong Docker. |
+| Mất dữ liệu khi DB Restart | **Trung bình** | Luôn khai báo `volumes` map ra folder đĩa host `./volumes/` trong Docker. |
 
 ---
 
@@ -104,22 +104,25 @@
 
 ```text
 src/
-├── app.py                 # Streamlit UI & Dashboard Logic
-├── config.py              # Định nghĩa Constants, Ports, Model Names
-├── data_ingestion/
-│   ├── processor.py       # Xử lý PDF & Chunking
-│   └── embedder.py        # Giao tiếp Ollama Embedding API
-├── db_clients/
-│   ├── base.py            # Abstract Base Class (ABC)
-│   ├── qdrant.py          # Implement D
-│   ├── weaviate.py        # Implement B
-│   └── milvus.py          # Implement C
-├── benchmark/
-│   ├── profiler.py        # Decorator & Logging Utils
-│   └── data/              # Folder chứa metrics.csv & raw history
-└── utils/
-    ├── logger.py          # Tập trung quản lý logs hệ thống
-    └── helpers.py         # Các hàm xử lý chuỗi, định dạng số
+├── app/
+│   └── main.py            # Streamlit UI & Dashboard Logic
+├── core/
+│   ├── data_ingestion/
+│   │   ├── processor.py   # Xử lý PDF & Chunking
+│   │   ├── embedder.py    # Giao tiếp Ollama Embedding API
+│   │   └── generator.py   # LLM Mock & Response Generator
+│   ├── db_clients/
+│   │   ├── base.py        # Abstract Base Class (ABC)
+│   │   ├── qdrant.py      # Implement D
+│   │   ├── weaviate.py    # Implement B
+│   │   └── milvus.py      # Implement C
+│   ├── benchmark/
+│   │   └── profiler.py    # Decorator & Logging Utils
+│   └── utils/
+│       ├── logger.py      # Quản lý logs hệ thống
+│       └── helpers.py     # Hàm xử lý chuỗi, định dạng số
+├── config.py              # Định nghĩa Constants, Ports, MOCK_MODE
+└── volumes/               # Thư mục chứa dữ liệu vật lý (Data Persistence)
 ```
 
 ## Đảm bảo tính Reproducibility & Security

@@ -9,9 +9,10 @@ Chịu trách nhiệm kiến trúc luồng dữ liệu (RAG), xây dựng giao d
 
 ### Tuần 1: Thiết lập Hệ thống Core RAG
 - Nghiên cứu và hiện thực logic trích xuất text và quản lý bảng biểu/hình ảnh từ PDF (Module Optional nhưng ưu tiên).
-- Khởi tạo thư mục dự án chuẩn theo cấu trúc `src/app.py`, `src/config.py`, và thiết lập luồng vận hành bằng GitHub CI/CD cơ bản.
-- Lập trình `processor.py` sử dụng thư viện LangChain tập trung vào việc đọc chia text PDF ra thành dạng chunks với quy tắc chia ổn định.
+- Khởi tạo thư mục dự án chuẩn theo cấu trúc `src/app/main.py`, `src/config.py`, và thiết lập luồng vận hành bằng GitHub CI/CD cơ bản.
+- Lập trình `src/core/data_ingestion/processor.py` sử dụng thư viện LangChain tập trung vào việc đọc chia text PDF ra thành dạng chunks với quy tắc chia ổn định.
 - Tích hợp được Ollama API Local nhằm mục đích tạo cơ chế sinh Embeddings miễn phí nhưng hiệu năng cao (sử dụng model `nomic-embed-text` cho embedding kích thước 768 chiều).
+- Thiết lập cơ chế `MOCK_MODE` tại `src/core/data_ingestion/generator.py` để đảm bảo hệ thống phản hồi ổn định khi chưa có LLM.
 
 ### Tuần 2: Xây triển Giao diện & Data Orchestration 
 - Xây dựng Layout Streamlit bao gồm Menu điều hướng Tabs, Sidebar và Cấu hình parameter.
@@ -29,6 +30,6 @@ Chịu trách nhiệm kiến trúc luồng dữ liệu (RAG), xây dựng giao d
 - Định hình lộ trình Demo Video, quản lý luồng kịch bản khi quay demo tránh dư thừa các màn khởi động Server.
 
 ## 3. Chỉ số Kỹ thuật Cần Đạt (KPIs)
-- Lớp Object `processor.py`: Trích xuất thành công nội dung chữ chuẩn tiếng Việt từ PDF. Output trung bình của độ dài chunks ở mức `1000` chars/chunk.
-- Lớp Ứng dụng `app.py`: Streamlit rendering mượt mà, quá độ chuyển trạng thái DB trơn tru, Load time dưới 2 giây. Tích hợp trực quan đẹp mắt và chuyên nghiệp.
+- Lớp Object `src/core/data_ingestion/processor.py`: Trích xuất thành công nội dung chữ chuẩn tiếng Việt từ PDF. Output trung bình của độ dài chunks ở mức `1000` chars/chunk.
+- Lớp Ứng dụng `src/app/main.py`: Streamlit rendering mượt mà, quá độ chuyển trạng thái DB trơn tru, Load time dưới 2 giây. Tích hợp trực quan đẹp mắt và chuyên nghiệp.
 - Mọi vector gửi vào Database phải chính thức đi qua Validate định dạng hàm Dimension bằng 768.
