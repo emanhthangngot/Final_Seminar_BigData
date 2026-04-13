@@ -59,6 +59,41 @@ VECTOR_DIM = 768
 TOP_K = 5
 
 # ---------------------------------------------------------------------------
+# Canonical ANN Index Parameters
+# ---------------------------------------------------------------------------
+# These are the SHARED HNSW parameters all three Vector DBs must use when
+# running the "fair" benchmark. Persons B / C / D should import these constants
+# in their wrappers instead of hardcoding values, so comparisons are
+# apples-to-apples. Change them in one place and the whole benchmark re-runs
+# on the same footing.
+DISTANCE_METRIC = "COSINE"
+HNSW_M = 16
+HNSW_EF_CONSTRUCTION = 128
+HNSW_EF_SEARCH = 64
+
+INDEX_PARAMS = {
+    "metric": DISTANCE_METRIC,
+    "index_type": "HNSW",
+    "M": HNSW_M,
+    "ef_construction": HNSW_EF_CONSTRUCTION,
+    "ef_search": HNSW_EF_SEARCH,
+}
+
+# ---------------------------------------------------------------------------
+# Benchmark Dataset
+# ---------------------------------------------------------------------------
+# Synthetic corpus scale for reproducible scale testing. Override via env for
+# quick smoke tests (e.g. BENCH_CORPUS_SIZE=1000).
+BENCH_CORPUS_SIZE = int(os.getenv("BENCH_CORPUS_SIZE", 10000))
+BENCH_NUM_QUERIES = int(os.getenv("BENCH_NUM_QUERIES", 200))
+BENCH_SEED = int(os.getenv("BENCH_SEED", 42))
+CHUNK_ID_PREFIX = "CID"  # every synthetic chunk starts with [CID:xxxx] for ground-truth matching
+
+# ---------------------------------------------------------------------------
 # Benchmarking
 # ---------------------------------------------------------------------------
-METRICS_FILE = SRC_DIR / "core" / "benchmark" / "metrics.csv"
+BENCHMARK_DIR = SRC_DIR / "core" / "benchmark"
+METRICS_FILE = BENCHMARK_DIR / "metrics.csv"
+TRADEOFF_FILE = BENCHMARK_DIR / "tradeoff.csv"
+RECALL_FILE = BENCHMARK_DIR / "recall.csv"
+BENCHMARK_DIR.mkdir(parents=True, exist_ok=True)
