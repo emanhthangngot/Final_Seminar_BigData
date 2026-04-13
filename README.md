@@ -9,9 +9,13 @@ Dự án này là hệ thống triển khai Retrieval-Augmented Generation (RAG)
 - **D. Trần Lê Trung Trực**: Chuyên viên Quản trị Qdrant.
 
 ## Tính Năng Kỹ Thuật
-- **Thiết Kế Giao Diện Trực Quan**: Giao diện Streamlit được thiết kế với nền tối (Deep Black), màu nhấn Xanh/Tím hiện đại, tuân thủ các nguyên tắc thiết kế UI/UX tiêu chuẩn quốc tế.
-- **Chế Độ Giả Lập (MOCK_MODE)**: Khả năng chạy Offline giả lập mô hình ngôn ngữ lớn (LLM) và thuật toán nhúng (Embeddings) để đảm bảo không phát sinh chi phí API trong quá trình tinh chỉnh giao diện và kiểm thử luồng dữ liệu.
-- **Hệ Thống Giám Sát Hiệu Năng (Telemetry Dashboard)**: Bảng điều khiển Plotly thu thập và trực quan hoá trực tiếp các thông số Thời Gian Nạp Dữ Liệu (Ingestion Time), và Độ Trễ Truy Vấn (Latency) để so sánh 3 hệ quản trị một cách công bằng minh bạch.
+- **Giao Diện Trực Quan**: Streamlit dashboard nền tối, 6 tabs phân tích (Latency / Accuracy / Recall-vs-Latency / Hybrid / Filtering / DX Score).
+- **Chế Độ Giả Lập (MOCK_MODE)**: Chạy hoàn toàn offline — embedder & LLM có fallback deterministic, không cần Ollama để dev & demo giao diện.
+- **Fairness Protocol**: Tất cả 3 DB dùng chung `INDEX_PARAMS` (HNSW M=16, ef_construction=128, ef_search=64, COSINE) từ `src/config.py` → so sánh apples-to-apples.
+- **Ground-Truth Accuracy**: Corpus synthetic 10K chunks (seed cố định), mỗi chunk mang nhãn `[CID:…]` → Recall@1/5/10 + MRR đo bằng exact ID match, không cần LLM-as-judge.
+- **Recall vs Latency Pareto Curve**: Sweep `top_k ∈ {1,2,5,10,20,50}` theo kiểu ann-benchmarks.com — biểu đồ chính cho slide thuyết trình.
+- **DX Score v2**: SLOC + cyclomatic complexity + public methods + third-party imports → score tổng hợp (thấp = dễ dùng).
+- **Telemetry Append-Mode**: `@time_profiler` ghi log O(1) per call vào `metrics.csv`, chịu được stress test dài.
 
 ---
 
@@ -57,16 +61,32 @@ Trình duyệt sẽ tự động điều hướng tới địa chỉ mạng cụ
 
 ---
 
-## Quy Trình Đánh Giá Hệ Thống Chuyên Sâu (Benchmarking)
+## Quy Trình Đánh Giá Hệ Thống (Benchmarking)
 
-1. Truy cập thanh điều hướng bên lề (Sidebar). Bắt buộc chọn đúng Database cần kiểm thử nghiệm (Qdrant, Weaviate, hoặc Milvus).
-2. Tại trình quản lý nạp dữ liệu (Data Ingestion Pipeline), Tải tệp dữ liệu PDF học thuật lên máy chủ ứng dụng.
-3. Chờ tiến trình xử lý văn bản (Load - Split - Chunk) hoàn tất và Cơ sở dữ liệu xác nhận thành công.
-4. Tương tác với giao diện hỏi đáp chính bằng khung văn bản truy vấn. 
-5. Thong qua he thong thu thap `@time_profiler`, moi so do thoi gian thuc tien cua thao tac Insert hay Search se duoc tong hop tu dong vao log tai `src/core/benchmark/metrics.csv`.
-6. Mo rong thanh dieu huong "Performance Telemetry" o cuoi khung hien thi de theo doi bieu dien ma tran radar cua suc manh cau truc co so du lieu.
-7. Mo rong panel "System Resources (Docker Containers)" de do CPU va RAM tieu thu cua tung Container Database theo thoi gian thuc.
-8. Su dung chuc nang "Stress Test" tai Sidebar de tu dong chay nhieu vong Insert/Search tren tat ca cac Database cung luc va so sanh ket qua.
+### 1. Demo luồng RAG (cho Video Demo)
+1. Vào Sidebar → chọn Database (Qdrant / Weaviate / Milvus).
+2. Upload 1 tệp PDF học thuật trong phần *Data Ingestion Pipeline* → bấm **Process & Inject**.
+3. Gõ câu hỏi vào ô chat chính → xem câu trả lời có trích context đúng không.
+
+### 2. Benchmark Học Thuật (cho Slide & Báo Cáo)
+
+| Tab | Mục đích | Cách chạy |
+| :--- | :--- | :--- |
+| **⚡ Latency** | p50/p95 ms của insert/search | Tự động ghi khi có thao tác, hoặc bấm *Run Stress Test* ở Sidebar |
+| **🎯 Accuracy** | Recall@1/5/10 + MRR trên synthetic corpus 10K | Tab Accuracy → *Run Accuracy Benchmark* |
+| **📈 Recall vs Latency** | Pareto curve sweep `top_k` | Tab Recall vs Latency → *Run Tradeoff Sweep* |
+| **👨‍💻 DX Score** | SLOC + cyclomatic + imports | Tab DX Score → *Run DX Analyzer* (tĩnh, không cần DB chạy) |
+| **System Resources** | CPU / RAM realtime từng container | Expander *System Resources* → *Refresh Resource Stats* |
+
+### 3. Cấu hình Benchmark
+Các biến môi trường điều chỉnh quy mô (đặt trong `.env` hoặc shell):
+```bash
+BENCH_CORPUS_SIZE=10000   # số chunk synthetic (default 10K)
+BENCH_NUM_QUERIES=200     # số golden query (default 200)
+BENCH_SEED=42             # seed cố định cho reproducibility
+```
+Fairness: cả 3 DB phải đọc `INDEX_PARAMS` từ `src/config.py` trong `connect()`.
+Không được hardcode HNSW params — PR sẽ bị reject bởi reviewer.
 
 ---
 

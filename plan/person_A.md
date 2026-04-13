@@ -14,22 +14,37 @@ Chịu trách nhiệm kiến trúc luồng dữ liệu (RAG), xây dựng giao d
 - Tích hợp được Ollama API Local nhằm mục đích tạo cơ chế sinh Embeddings miễn phí nhưng hiệu năng cao (sử dụng model `nomic-embed-text` cho embedding kích thước 768 chiều).
 - Thiết lập cơ chế `MOCK_MODE` tại `src/core/data_ingestion/generator.py` để đảm bảo hệ thống phản hồi ổn định khi chưa có LLM.
 
-### Tuần 2: Xây triển Giao diện & Data Orchestration 
-- Xây dựng Layout Streamlit bao gồm Menu điều hướng Tabs, Sidebar và Cấu hình parameter.
-- Triển khai chức năng Chat Interface giúp người dùng thao tác tương tác như 1 Agent, cho phép đính kèm tệp PDF lên server cục bộ.
-- Xây dựng phần Prompt Generation & điều phối LLM Pipeline. Viết Code tiếp nhận Vector Documents lấy về từ 3 Database, thiết kế Context chuẩn xác để mô hình LLM Qwen3.5 đọc hiểu và trả lời ngôn ngữ tự nhiên. 
+### Tuần 2: Dashboard V2 + Methodology chuẩn hoá
+- Xây dựng Layout Streamlit với **6 tabs**: ⚡ Latency / 🎯 Accuracy / 📈 Recall vs Latency / 🔍 Hybrid / ⚙️ Filtering / 👨‍💻 DX Score.
+- Triển khai Chat Interface (RAG Agent) cho phép upload PDF thực tế để demo.
+- **Thiết kế Fairness Protocol** (điểm ăn Q&A): định nghĩa `INDEX_PARAMS`
+  (HNSW M=16, ef_construction=128, ef_search=64, COSINE) trong `src/config.py`
+  → broadcast cho B/C/D. Review PR của 3 bạn để đảm bảo họ consume constants
+  này (không ai hardcode settings khác).
+- **Module `src/core/benchmark/dataset.py`**: synthetic corpus 10K chunks mỗi
+  chunk mang nhãn `[CID:NNNNNNN]` + golden queries reproducible.
+- **Module `src/core/benchmark/evaluator.py`**: Recall@1/5/10 + MRR với
+  ground-truth là Chunk ID exact match (không dùng substring / LLM-as-judge).
 
-### Tuần 3: Xây dựng Benchmarking Dashboard Analytic
-- Tập trung đo sự hiệu quả của Ingestion Time (Toàn bộ thời gian xử lý E2E) từ khi User tải file PDF đến lúc Vector được nhúng hoàn toàn vào Database.
-- Thiết kết phần Backend thu thập dữ liệu chỉ số log thô vào file log trung tâm `metrics.csv`.
-- Tận dụng `Plotly/Altair` dựng hệ thống Dashboard hiển thị so sánh động Bar Chart và Radar Chart biểu thị cho Latency của 3 CSDL cũng như tính ổn định thông lượng.
+### Tuần 3: Benchmark Nâng Cao (Recall-Latency Curve + DX v2)
+- **Module `src/core/benchmark/tradeoff.py`**: sweep `top_k ∈ {1,2,5,10,20,50}`
+  cho cả 3 DB để vẽ biểu đồ Recall vs Latency kiểu ann-benchmarks.com.
+  Điểm càng gần góc trên-trái càng tốt — chart này là **main visual** trong slide.
+- **Nâng cấp `src/core/utils/dx_analyzer.py`**: thêm cyclomatic complexity +
+  count public methods + count third-party imports → score tổng hợp. SLOC thuần
+  quá nông, dễ bị thầy bẻ.
+- Dashboard Plotly render mượt với corpus 10K+ (dùng `@st.cache_resource` cho
+  embedder/DB clients, không cache kết quả benchmark).
+- Hỗ trợ B/C/D debug khi Recall của họ bất thường (sai metric, sai index params).
 
 ### Tuần 4: Đóng gói Báo Cáo & Thuyết Trình Seminar
-- Là người thiết kế Slide thuyết trình, đảm bảo Slide phản ánh được Trade-offs của 3 vector DB thông qua Biểu đồ so sánh thời gian và tài nguyên thay vì nhồi nhét cấu hình.
-- Phối hợp thành viên thiết kế các hình học minh hoạ (Architecture Diagram). 
-- Định hình lộ trình Demo Video, quản lý luồng kịch bản khi quay demo tránh dư thừa các màn khởi động Server.
+- Là người thiết kế Slide thuyết trình, đảm bảo Slide phản ánh được Trade-offs CỦA 4 TRỤ CỘT: Latency, Accuracy, Filtering, và DX Matrix.
+- Phối hợp thành viên thiết kế các hình học minh hoạ (Architecture Diagram) theo chuẩn The Big Data Trio. 
+- Định hình lộ trình Demo Video, quản lý luồng kịch bản khi quay demo.
 
 ## 3. Chỉ số Kỹ thuật Cần Đạt (KPIs)
-- Lớp Object `src/core/data_ingestion/processor.py`: Trích xuất thành công nội dung chữ chuẩn tiếng Việt từ PDF. Output trung bình của độ dài chunks ở mức `1000` chars/chunk.
-- Lớp Ứng dụng `src/app/main.py`: Streamlit rendering mượt mà, quá độ chuyển trạng thái DB trơn tru, Load time dưới 2 giây. Tích hợp trực quan đẹp mắt và chuyên nghiệp.
-- Mọi vector gửi vào Database phải chính thức đi qua Validate định dạng hàm Dimension bằng 768.
+- `evaluator.py`: Tính đúng Recall@1/5/10 + MRR bằng exact chunk-ID match trên corpus ≥ 10K.
+- `tradeoff.py`: Sinh được DataFrame (Engine, top_k, Recall, AvgLatency_ms) → vẽ curve Plotly.
+- `main.py`: 6 tabs chạy mượt, Accuracy + Tradeoff tabs có progress bar thời gian thực, không treo UI khi corpus 10K.
+- `dx_analyzer.py`: Complexity Score gồm ≥ 4 signals (sloc, methods, cyclomatic, third_party_imports).
+- `config.py`: Export `INDEX_PARAMS` để B/C/D dùng chung → đảm bảo fairness.

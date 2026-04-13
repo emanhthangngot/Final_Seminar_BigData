@@ -12,17 +12,25 @@
 - Tạo một kết nối thử thông qua Python client `qdrant-client` kiểm tra quyền Collection Management. Đính kèm khoảng cách phương pháp đo toán học bắt buộc `Distance.COSINE` vào cho `dim=768`.
 
 ### Tuần 2: Xử lý Payload và API Upload
-- Thể hiện sự nhất quán thông qua việc design pattern trong class `src/core/db_clients/qdrant.py`.
-- Tối ưu chu trình lưu trữ, tận dụng phương thức API `client.upload_points()` chuyên biệt của Qdrant, đẩy batching payload/metadata kèm với Vector thông tin cực nhanh từ LangChain TextSplitter.
-- Xử lý mượt mà tác vụ query. Viết bổ sung chức năng Payload Filtering (truy vấn kết hợp vector và điều kiện metadata như nguồn của document hoặc ID tài liệu) giúp RAG được gọn gàng tránh nhầm lẫn text context.
+- Tối ưu chu trình `client.upload_points()`, batch payload/metadata kèm Vector.
+- **FAIRNESS BẮT BUỘC:** Trong `connect()` phải pass `INDEX_PARAMS` vào
+  `hnsw_config=models.HnswConfigDiff(m=INDEX_PARAMS["M"], ef_construct=INDEX_PARAMS["ef_construction"])`
+  và ef search qua `search_params=models.SearchParams(hnsw_ef=INDEX_PARAMS["ef_search"])`.
+  Không hardcode — fairness là điều kiện tiên quyết để benchmark có giá trị.
+- **NHIỆM VỤ CỐT LÕI:** Hoàn thiện `search_hybrid()` — build `models.Filter` từ
+  dict, pass vào `query_points(query_filter=...)`. Stretch: `prefetch` + sparse
+  vectors cho hybrid thực sự.
+- **PHỐI HỢP A:** Validate Recall qua `run_accuracy_benchmark` của A. Recall@5
+  của Qdrant nên ≥ 90% trên synthetic corpus; nếu thấp, check `distance=COSINE`
+  và `hnsw_config`.
 
-### Tuần 3: Giám định Thực Quyền Performance (Benchmarking)
-- Trích xuất thông số log time chạy Python cho Ingestion tốc độ `qdrant_ingest_ms` cho chuẩn định 1000 vectors.
-- Điểm mạnh của Rust là RAM siêu nhẹ. Bắt tay vào chụp thực tế `ram_at_idle` và kiểm chứng khi Peak Ingestion thì biến động dao động như thế nào, sau đó đúc rút sang `metrics.csv`.
-- Theo sát quá trình search latency ổn định không nếu có cả hoạt động filter metadata lồng vào toán học C-Cosine.
+### Tuần 3: Giám định Recall@K Performance (Benchmarking)
+- Theo sát quá trình search latency ổn định không khi có cả hoạt động filter metadata lồng vào Graph HNSW. Đo đạc bằng biểu đồ trên UI.
+- Phân tích RAM Usage `ram_at_idle` vs `Peak Ingestion` của Rust.
+- Phối hợp chạy file `evaluator.py` để chứng minh liệu hệ thống Payload Filtering đặc thù của Qdrant có giúp tăng tỷ lệ Recall@1 ở các câu hỏi điều kiện nhiều hơn so với 2 DB kia hay không.
 
 ### Tuần 4: Paper Document Analysis
-- Thiết kế riêng báo cáo học thuyết phân tích lõi Rust tạo nên sức hút Zero-cost của Qdrant. Giải thích cấu tạo kỹ thuật chuyên sâu mang tên Binary Quantization (Tính năng nén định dạng vector mới nổi tiết kiệm tới 40 lần RAM).
+- Viết báo cáo chuyên môn về DX Score: Vì sao Rust SDK của Qdrant rất thanh lịch, clean, dễ tuỳ chỉnh Payload Filter. Đào sâu lý thuyết kiến trúc Lõi Rust kết hợp với chiến lược Data Nén (Binary/Scalar Quantization) tạo nên đột phá RAM như thế nào.
 - Trích xuất tổng thị phần Qdrant Github (hiện đang Trending cực nóng), mô hình kiếm tiền theo Qdrant Cloud. Soạn Architecture Diagram khối hình.
 - Chuẩn bị Q&A thuyết trình trên lớp: Tại sao lại recommend Start-up ít tài nguyên sử dụng sản phẩm này? Tại sao API Qdrant thường được DEV Backend thích hơn?
 
