@@ -1,10 +1,10 @@
 from typing import List, Dict, Any
 from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
-from src.db_clients.base import BaseVectorDB
+from src.core.db_clients.base import BaseVectorDB
 from src.config import MILVUS_HOST, MILVUS_PORT, VECTOR_DIM
-from src.benchmark.profiler import time_profiler
-from src.utils.logger import logger
-from src.utils.helpers import format_milvus_collection_name
+from src.core.benchmark.profiler import time_profiler
+from src.core.utils.logger import logger
+from src.core.utils.helpers import format_milvus_collection_name
 
 class MilvusWrapper(BaseVectorDB):
     def connect(self) -> None:

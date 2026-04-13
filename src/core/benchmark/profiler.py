@@ -2,7 +2,7 @@ import time
 import functools
 import pandas as pd
 from pathlib import Path
-from src.utils.logger import logger
+from src.core.utils.logger import logger
 from src.config import METRICS_FILE
 
 def time_profiler(func):

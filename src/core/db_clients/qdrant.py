@@ -1,10 +1,9 @@
-from typing import List, Dict, Any
-from src.db_clients.base import BaseVectorDB
+from src.core.db_clients.base import BaseVectorDB
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from src.config import QDRANT_HOST, QDRANT_HTTP_PORT, VECTOR_DIM
-from src.benchmark.profiler import time_profiler
-from src.utils.logger import logger
+from src.core.benchmark.profiler import time_profiler
+from src.core.utils.logger import logger
 
 class QdrantWrapper(BaseVectorDB):
     def connect(self) -> None:

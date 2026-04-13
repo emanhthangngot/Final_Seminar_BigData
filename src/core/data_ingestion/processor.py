@@ -1,9 +1,9 @@
 import io
 from typing import List
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from src.config import CHUNK_SIZE, CHUNK_OVERLAP
-from src.utils.logger import logger
+from src.core.utils.logger import logger
 
 def load_and_chunk_pdf(file_path: str) -> List[str]:
     """

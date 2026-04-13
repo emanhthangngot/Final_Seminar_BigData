@@ -1,5 +1,0 @@
-Engine,Ingestion_Time_ms,Query_Latency_ms
-Dummy (Test),125.5,45.2
-Qdrant,0.0,0.0
-Weaviate,0.0,0.0
-Milvus,0.0,0.0

@@ -1,10 +1,10 @@
 from typing import List, Dict, Any
 import weaviate
 from weaviate.classes.init import Auth
-from src.db_clients.base import BaseVectorDB
+from src.core.db_clients.base import BaseVectorDB
 from src.config import WEAVIATE_HOST, WEAVIATE_PORT, VECTOR_DIM
-from src.benchmark.profiler import time_profiler
-from src.utils.logger import logger
+from src.core.benchmark.profiler import time_profiler
+from src.core.utils.logger import logger
 
 class WeaviateWrapper(BaseVectorDB):
     def connect(self) -> None:
