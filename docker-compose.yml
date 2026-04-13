@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   qdrant:
     image: qdrant/qdrant:latest
@@ -8,7 +6,7 @@ services:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - ./qdrant_data:/qdrant/storage
+      - ./volumes/qdrant_data:/qdrant/storage
     networks:
       - seminar_net
     deploy:
@@ -17,7 +15,7 @@ services:
           memory: 1G
 
   weaviate:
-    image: semitechnologies/weaviate:latest
+    image: semitechnologies/weaviate:1.27.2
     container_name: seminar_weaviate
     ports:
       - "8080:8080"
@@ -28,8 +26,10 @@ services:
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       DEFAULT_VECTORIZER_MODULE: 'none'
       ENABLE_MODULES: ''
+      CLUSTER_HOSTNAME: 'weaviate-node-1'
+      CLUSTER_BOOTSTRAP_EXPECT: 1
     volumes:
-      - ./weaviate_data:/var/lib/weaviate
+      - ./volumes/weaviate_data:/var/lib/weaviate
     networks:
       - seminar_net
     deploy:
@@ -48,7 +48,7 @@ services:
       - "19530:19530"
       - "9091:9091"
     volumes:
-      - ./milvus_data:/var/lib/milvus
+      - ./volumes/milvus_data:/var/lib/milvus
     networks:
       - seminar_net
     depends_on:
@@ -68,7 +68,7 @@ services:
       - ETCD_QUOTA_BACKEND_BYTES=4294967296
       - ETCD_SNAPSHOT_COUNT=50000
     volumes:
-      - ./etcd_data:/etcd
+      - ./volumes/etcd_data:/etcd
     command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
     networks:
       - seminar_net
@@ -83,7 +83,7 @@ services:
       - "9001:9001"
       - "9000:9000"
     volumes:
-      - ./minio_data:/minio_data
+      - ./volumes/minio_data:/minio_data
     command: minio server /minio_data --console-address ":9001"
     networks:
       - seminar_net
@@ -94,17 +94,26 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ./ollama_data:/root/.ollama
+      - ./volumes/ollama_data:/root/.ollama
     networks:
       - seminar_net
-    # For GPU support (optional but recommended if available)
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+
+  ollama-init:
+    image: curlimages/curl:latest
+    container_name: seminar_ollama_init
+    networks:
+      - seminar_net
+    depends_on:
+      - ollama
+    command: >
+      sh -c "
+        echo 'Waiting for Ollama to be available...';
+        while ! curl -s http://ollama:11434/api/tags >/dev/null; do sleep 3; done;
+        echo 'Ollama is Active. Pulling required models (nomic-embed-text and qwen:3.6)...';
+        curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"nomic-embed-text\"}';
+        curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"qwen2.5:3b\"}';
+        echo 'Model pull requests completed.';
+      "
 
 networks:
   seminar_net:

@@ -27,34 +27,35 @@
 
 | Thành viên | UI/Orchestration Development | Data Insertion (Batching CRUD) | Search Strategy & ANN Optimization |
 | :--- | :--- | :--- | :--- |
-| **A** | Layout Streamlit (Tabs, Sidebar, Config) | Điều phối luồng dữ liệu từ PDF -> DB | Xây dựng Prompt Template, gọi LLM Qwen3.5 |
-| **B** | | Triển khai `collection.batch.dynamic()` | Tối ưu truy vấn `nearVector` qua gRPC |
-| **C** | | Viết logic `insert()` và `collection.flush()` | Cấu hình `HNSW` index (M=16, ef=64) |
-| **D** | | Implement `client.upload_points()` | Tối ưu Payload filtering và `Cosine` search |
+| **A** | Kịch bản Evaluator (Recall@K) & DX Score | Xây dựng UI Dashboard V2 (Tabs, Plots) | Gọi LLM Qwen tạo Golden Dataset |
+| **B** | | Triển khai Weaviate `search_hybrid(Filters)`| Tối ưu từ khoá Hybrid search qua Alpha parameter |
+| **C** | | Triển khai Milvus `search_hybrid(expr)` | Tối ưu Boolean Filter / AnnSearchRequest |
+| **D** | | Triển khai Qdrant `search_hybrid(Prefetch)`| Tích hợp Payload Filter vào Dense Search |
 
-### Giai đoạn 3 - Benchmarking thực nghiệm & Stress Test (Tuần 3)
+### Giai đoạn 3 - Nâng cao: The Big Data Trio Benchmarking (Tuần 3)
 
-| Thành viên | Metrics Collection (Latency/Throughput) | System Monitoring (CPU/RAM/IO) | Analytics & Visualization |
+| Thành viên | Accuracy & RAG Quality (Recall@K) | Hybrid Search & Metadata Filtering | DX (Developer Experience) Analytics |
 | :--- | :--- | :--- | :--- |
-| **A** | Đo tổng thời gian luồng RAG (End-to-End) | Tổng hợp dữ liệu thô vào `metrics.csv` | Phát triển Dashboard so sánh bằng Plotly/Altair |
-| **B** | Đo `weaviate_ingest_ms` / 1000 vectors | Ghi nhận RAM usage của Weaviate (Go) | Phân tích hiệu quả của Batching |
-| **C** | Đo `milvus_ingest_ms` / 1000 vectors | Monitor etcd/milvus-standalone resource | Phân tích RAM Spike khi gọi `load()` |
-| **D** | Đo `qdrant_ingest_ms` / 1000 vectors | Kiểm chứng RAM cực thấp của Qdrant (Rust) | Phân tích độ ổn định của search latency |
+| **A** | Đánh giá Tỷ lệ câu trả lời đúng (Recall@5) | Xây dựng Biểu đồ Line Chart cho Filtering | Tính điểm DX Matrix (SLOC, Code Complexity) |
+| **B** | Phân tích Recall của Weaviate | Khảo sát Latency khi thêm filter phức tạp | Viết đánh giá trải nghiệm API của Weaviate |
+| **C** | Phân tích Recall của Milvus | So sánh độ trễ Milvus Vector vs Hybrid | Viết đánh giá trải nghiệm cấu hình Schema Milvus |
+| **D** | Phân tích Recall của Qdrant | Kiểm chứng tốc độ Prefetch của Qdrant | Viết đánh giá trải nghiệm Rust SDK Qdrant |
 
 ### Giai đoạn 4 - Báo cáo, Đóng gói & Seminar (Tuần 4)
 
-- **Cả nhóm:** Viết báo cáo học thuật (PDF) phân tích chi tiết:
-  - Bổ sung **Sơ đồ kiến trúc tổng quan (Architecture Diagram)** cho từng CSDL.
-  - Bổ sung thông tin đối chiếu về bản quyền (Open-source License), Bảng giá (Pricing), độ phổ biến (Community Stars) trong mảng Big Data.
-  - Phân tích sâu ưu nhược điểm của 3 kiến trúc (Go vs C++ vs Rust) thông qua giải thích biểu đồ thực nghiệm.
-- **A & B:** Thiết kế Slide thuyết trình tập trung vào tính tương phản (Trade-offs) và kết quả Benchmark.
-- **C & D:** Quay video Live Demo mạch lạc, chỉ trình diễn tính năng chính. **Tuyệt đối không gộp bước cài đặt/config vào phần demo.**
+- **Cả nhóm:** Viết báo cáo học thuật (PDF) phân tích chi tiết bộ 4 trụ cột:
+  - **Latency & Resources:** Tốc độ lưu / tìm kiếm, RAM/CPU qua Docker stats.
+  - **Accuracy (Recall@K):** DB nào tìm kiếm chính xác nhất trả lời câu hỏi.
+  - **Filtering & Hybrid:** DB nào chịu tải tốt nhất khi thêm điều kiện lọc.
+  - **DX Matrix:** Đánh giá độ khó triển khai thực tế.
+- **A & B:** Thiết kế Slide thuyết trình tập trung vào tính tương phản (Trade-offs) và kết quả Benchmark 4 Trụ cột.
+- **C & D:** Quay video Live Demo chứng minh Recall@K, hiển thị DX Matrix. **Tuyệt đối không gộp bước cài đặt/config vào phần demo.**
 
 ---
 
 ## Đầu ra mong đợi (Detailed Deliverables)
 
-### Phần 1 - Hệ thống RAG Core & UI (Thành viên A)
+### Phần 1 - Hệ thống RAG Benchmarking V2 & Evaluator (Thành viên A)
 
 | Yêu cầu | Sản phẩm bàn giao cụ thể | Chỉ số đánh giá kỹ thuật |
 | :--- | :--- | :--- |
@@ -73,8 +74,37 @@
 ### Tiêu chí chung cho Benchmarking
 
 - Sử dụng `@time_profiler` cho mọi phương thức `insert` và `search`.
-- Dữ liệu `metrics.csv` phải bao gồm: `timestamp`, `database`, `operation`, `duration_ms`, `ram_usage_mb`.
+- Dữ liệu `metrics.csv` phải bao gồm: `timestamp`, `database`, `operation`, `duration_ms`.
 - Biểu đồ phải tương tác được: Cho phép lọc theo từng DB hoặc so sánh trực diện.
+
+### Methodology Bắt Buộc (Fairness Protocol)
+
+Để benchmark có giá trị học thuật (không bị "bẻ" trong Q&A), cả 3 DB phải tuân thủ:
+
+1. **Canonical Index Params** — Tất cả DB đọc HNSW params từ `src.config.INDEX_PARAMS`
+   (`M=16`, `ef_construction=128`, `ef_search=64`, `metric=COSINE`). Không ai được
+   hardcode giá trị khác. B/C/D có trách nhiệm pass params vào code `connect()`.
+2. **Shared Corpus & Queries** — Sử dụng module `src.core.benchmark.dataset`:
+   - Synthetic corpus mặc định **10.000 chunks** (config `BENCH_CORPUS_SIZE`),
+     seed cố định (`BENCH_SEED=42`) → fully reproducible.
+   - Mỗi chunk gắn nhãn `[CID:NNNNNNN]` ở đầu → ground truth = exact ID match.
+   - Golden queries lấy ngẫu nhiên 14-word window từ chunk → embedding gần chunk gốc.
+3. **Ground-Truth Recall** — `evaluator.run_accuracy_benchmark()` trả về
+   **Recall@1 / @5 / @10 + MRR + AvgLatency_ms + Errors**. Không còn substring match.
+4. **Recall vs Latency Curve** — `tradeoff.run_tradeoff_sweep()` sweep
+   `top_k ∈ {1, 2, 5, 10, 20, 50}`, xuất curve kiểu ann-benchmarks.com
+   (điểm góc trên-trái = tốt nhất) — đây là chart quyết định trong slide.
+5. **DX Score nâng cấp** — `dx_analyzer` giờ tính SLOC + cyclomatic complexity
+   + public methods + 3rd-party imports → điểm tổng hợp thay vì chỉ đếm dòng.
+
+### Bộ 4 Trụ Cột Đánh Giá (Final)
+
+| Trụ cột | Metric | Module | Tab dashboard |
+| :--- | :--- | :--- | :--- |
+| **Latency & Resources** | `Duration_ms` (p50/p95), CPU%, RAM MB | `profiler.py`, `resource_monitor.py` | ⚡ Latency, System Resources |
+| **Accuracy (RAG Quality)** | Recall@1/5/10, MRR | `evaluator.py`, `dataset.py` | 🎯 Accuracy |
+| **Accuracy-Speed Tradeoff** | Recall vs AvgLatency curve | `tradeoff.py` | 📈 Recall vs Latency |
+| **DX (Developer Experience)** | SLOC + cyclomatic + imports → score | `dx_analyzer.py` | 👨‍💻 DX Score |
 
 ---
 
@@ -85,7 +115,7 @@
 | Tràn RAM khi chạy 3 DB | **Cao** | Thiết lập `mem_limit` trong Docker Compose, tắt DB không sử dụng. |
 | Treo Ollama khi nạp hàng loạt | **Trung bình** | Implement cơ chế `backoff/retry` và nạp theo batch nhỏ (50 vectors). |
 | Sai dimension vector (768) | **Nghiêm trọng** | Thêm hàm `assert len(vector) == 768` ngay sau bước embedding. |
-| Mất dữ liệu khi DB Restart | **Trung bình** | Luôn khai báo `volumes` map ra folder đĩa host trong Docker. |
+| Mất dữ liệu khi DB Restart | **Trung bình** | Luôn khai báo `volumes` map ra folder đĩa host `./volumes/` trong Docker. |
 
 ---
 
@@ -100,26 +130,35 @@
 - **Python Version:** 3.11 (Yêu cầu bắt buộc để đảm bảo tương thích thư viện).
 - **Virtual Env:** Sử dụng `venv` hoặc `conda`. Không cài library global.
 
-### Cấu trúc thư mục `src` (Mở rộng)
+### Cấu trúc thư mục `src` (Cập nhật)
 
 ```text
 src/
-├── app.py                 # Streamlit UI & Dashboard Logic
-├── config.py              # Định nghĩa Constants, Ports, Model Names
-├── data_ingestion/
-│   ├── processor.py       # Xử lý PDF & Chunking
-│   └── embedder.py        # Giao tiếp Ollama Embedding API
-├── db_clients/
-│   ├── base.py            # Abstract Base Class (ABC)
-│   ├── qdrant.py          # Implement D
-│   ├── weaviate.py        # Implement B
-│   └── milvus.py          # Implement C
-├── benchmark/
-│   ├── profiler.py        # Decorator & Logging Utils
-│   └── data/              # Folder chứa metrics.csv & raw history
-└── utils/
-    ├── logger.py          # Tập trung quản lý logs hệ thống
-    └── helpers.py         # Các hàm xử lý chuỗi, định dạng số
+├── app/
+│   └── main.py              # Streamlit UI & Dashboard V2 (6 tabs)
+├── core/
+│   ├── data_ingestion/
+│   │   ├── processor.py     # Xử lý PDF & Chunking
+│   │   ├── embedder.py      # Ollama Embedding + MOCK_MODE fallback
+│   │   └── generator.py     # LLM generator + MOCK_MODE fallback
+│   ├── db_clients/
+│   │   ├── base.py          # Abstract BaseVectorDB
+│   │   ├── qdrant.py        # Skeleton — Person D implements hybrid/reset
+│   │   ├── weaviate.py      # Skeleton — Person B implements hybrid/reset
+│   │   └── milvus.py        # Skeleton — Person C implements hybrid/reset
+│   ├── benchmark/
+│   │   ├── profiler.py      # @time_profiler decorator (append-mode CSV)
+│   │   ├── resource_monitor.py  # Docker CPU/RAM stats per container
+│   │   ├── stress_test.py   # Multi-round insert/search driver
+│   │   ├── dataset.py       # Synthetic corpus + golden queries (CID-tagged)
+│   │   ├── evaluator.py     # Recall@K + MRR on ground-truth IDs
+│   │   └── tradeoff.py      # Recall vs Latency sweep (ann-benchmarks style)
+│   └── utils/
+│       ├── logger.py
+│       ├── helpers.py
+│       └── dx_analyzer.py   # SLOC + cyclomatic + imports → DX score
+├── config.py                # Constants, ports, MOCK_MODE, INDEX_PARAMS, BENCH_*
+└── volumes/                 # Data persistence for Docker containers
 ```
 
 ## Đảm bảo tính Reproducibility & Security
@@ -129,9 +168,21 @@ src/
 
 ## Tập dữ liệu thực nghiệm
 
+Nhóm sử dụng **hai** nguồn dữ liệu bổ trợ lẫn nhau:
+
+### Nguồn A — Synthetic Corpus (cho Benchmark chính thức)
+- **Module:** `src/core/benchmark/dataset.py` (`build_corpus`, `build_golden_queries`)
+- **Quy mô mặc định:** 10.000 chunks, 200 golden queries (override qua biến môi trường
+  `BENCH_CORPUS_SIZE`, `BENCH_NUM_QUERIES`).
+- **Đặc tính:** Deterministic (seed `BENCH_SEED=42`), mỗi chunk mang nhãn
+  `[CID:NNNNNNN]` để làm ground truth cho Recall@K / MRR — **không cần LLM-as-judge**,
+  không cần gán nhãn thủ công, hoàn toàn reproducible.
+- **Lý do chọn:** Đây là dữ liệu chính cho tất cả biểu đồ trong slide — cùng corpus,
+  cùng queries, cùng seed cho cả 3 DB ⇒ so sánh công bằng.
+
+### Nguồn B — Real PDF Corpus (cho Demo RAG Chat)
 - **Nguồn:** 10 tệp PDF báo cáo Seminar Big Data các năm trước.
-- **Quy trình:**
-    1. Tải lên (Upload).
-    2. Kiểm tra tính hợp lệ (Validate).
-    3. Trích xuất text (Extract).
-    4. Gán ID nhãn (Labeling) để phục vụ đo lường độ chính xác retrieval.
+- **Quy trình:** Upload → Validate → Extract (PyPDFLoader) → Chunk (RecursiveCharacterTextSplitter).
+- **Lý do giữ lại:** Demo Q&A trực tiếp trên UI nhìn thuyết phục hơn synthetic text —
+  dùng cho phần "Live RAG Agent" trong video demo, **không** dùng để báo cáo số
+  Recall@K (vì không có ground truth đáng tin).

@@ -12,21 +12,29 @@ Sắm vai Chuyên gia nền tảng về hệ CSDL Vector **Milvus**. Vận hành
 - Khởi tạo client Python, tạo Collection mẫu, sau đó mapping Schema trường thông tin đặc thù của Milvus (Id kiểu `Int64`, Embeddings kiểu `FloatVector`, quy chuẩn `dim=768`).
 
 ### Tuần 2: Rút gọn CRUD & Chuẩn bị Query Vector
-- Triển khai tệp mã nguồn chuyên dụng `db_clients/milvus.py` tích hợp chuẩn giao tiếp hệ thống.
-- Cài đặt hệ thống lệnh nạp luồng qua hàm `insert()`. Vận hành linh hoạt hành động `collection.flush()` bắt buộc phải có để niêm phong đoạn dữ liệu đĩa sau khi tải xuống. 
-- Tìm hiểu cấu hình tinh chỉnh thông số HNSW Index (ví dụ: tham số M=16, efConstruction=64) để tăng hiệu suất truy vấn gần nhất. Gọi thao tác `collection.load()` - 1 thủ tục bắt buộc ở Milvus nhằm kéo dữ liệu Index từ SSD lên RAM phục vụ truy vấn tối đa công năng.
+- Hoàn thiện `src/core/db_clients/milvus.py` (skeleton đã có sẵn `connect/insert/search`).
+- `insert()` + `collection.flush()` phải stable với corpus 10K chunks.
+- **FAIRNESS BẮT BUỘC:** Đọc `INDEX_PARAMS` từ `src.config` và pass vào HNSW
+  index_params `{"metric_type": INDEX_PARAMS["metric"], "index_type": "HNSW",
+  "params": {"M": INDEX_PARAMS["M"], "efConstruction": INDEX_PARAMS["ef_construction"]}}`
+  + search_params `{"params": {"ef": INDEX_PARAMS["ef_search"]}}`. KHÔNG HARDCODE.
+- **NHIỆM VỤ CỐT LÕI:** Hoàn thiện `search_hybrid()` — dùng `expr` cho Boolean
+  filter (vd `"category == 'tech' and year > 2023"`). Stretch: `AnnSearchRequest`
+  + `RRFRanker` cho hybrid thực sự.
+- **PHỐI HỢP A:** Chạy `run_accuracy_benchmark` validate Recall — nếu lệch so
+  với Qdrant/Weaviate >5% thì kiểm tra lại index params hoặc consistency level.
 
-### Tuần 3: Giám Sát Tài Nguyên & Lấy Metrics
+### Tuần 3: Giám Sát Tài Nguyên & Đo lường Recall@K
 - Kích hoạt Python code đo lường thời gian đáp ứng đẩy hàng loạt `milvus_ingest_ms`.
-- Lắng nghe hoạt động tài nguyên CPU Utilization thực thụ thông qua việc phân tích Monitor hoạt cảnh của cụm Milvus, etcd, minio.
-- Đánh giá sự kiện RAM Spike (Giật lên đỉnh tài nguyên ram) khi user ra lệnh gọi hàm Load() Data từ ổ đĩa lên bộ nhớ. Đưa báo cáo cụ thể độ trễ này có chấp nhận cho Real-time ko.
+- Lắng nghe sự kiện RAM Spike khi kích hoạt `load()` data.
+- Phối hợp với Thành viên A chạy Evaluator: Benchmark xem bộ lọc `expr` của Milvus xử lý cực nhanh ra sao ở quy mô lớn, và so sánh Latency giữa chế độ Vector Only vs. Biểu thức expr rắc rối.
 
 ### Tuần 4: Sắp Xếp Trình Bày Document & Video Demo
-- Cống hiến kỹ năng viết báo cáo phần kiến trúc lõi của Milvus: Giải thích cấu tạo Coordinator Node/ Worker Node. Mô phỏng vì sao giới Big Data và Enterprise siêu lớn lại hay xài Milvus?
+- Viết báo cáo chuyên sâu về sự đánh đổi giữa cấu trúc phân tán (Distributed Log-broker) cồng kềnh với tốc độ siêu việt của bộ lọc Boolean. Trình bày tại sao điểm DX Score của Milvus có thể cao (khó dùng) nhưng Accuracy và Throughput lại bù đắp hoàn hảo.
 - Khảo cứu đưa ra thực trạng thị trường: Số stars trên Github, mô hình kiếm tiền theo License của sản phẩm, hệ thống Cloud hiện hành.
 - Sắp xếp và triển khai Quay Video Demo mạch lạc nhất đối với phiên thực thi của riêng Milvus trong hệ thống RAG Ràng Buộc, bảo đảm luồng UI thực thi rõ ràng mà ko dồn dập lỗi môi trường.
 
 ## 3. Chỉ số Kỹ thuật Cần Đạt (KPIs)
 - Hoàn thiện lập chỉ mục, việc Search() diễn ra phản hồi bình thường sau thủ tục Load(), hệ thống hiển thị rành mạch `Index Ready`.
 - Cung cấp chính xác biến đo lường tốc độ tính theo `vectors/sec`, tính toán rạch ròi tỉ lệ ăn CPU theo core khi thực thi truy vấn HNSW.
-- Lưu ý rủi ro tài nguyên Milvus có thể yêu cầu nhiều GB disk và Ram, phải set limit memory trên yaml hợp logic.
+- Lưu ý rủi ro tài nguyên Milvus có thể yêu cầu nhiều GB disk và Ram (tại `./volumes/milvus_data`), phải set limit memory trên yaml hợp logic.
