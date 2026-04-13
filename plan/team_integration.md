@@ -1,46 +1,42 @@
-# TEAM INTEGRATION & SYNC STRATEGY
+# Kế hoạch Tổng thể & Tích hợp Nhóm (Team Integration)
 
-## Tổng quan tích hợp
+## 1. Mục tiêu Tối Thượng
+Hoàn thiện toàn bộ bài Benchmark kiểm thử RAG Project. Nhằm mục đích thuyết trình phân tích Seminar môn Big Data trực quan, có giá trị học thuật điểm 10, chứng thực những Trade-offs so sánh tài nguyên của hệ ba Vector Database lớn: Qdrant, Weaviate, Milvus.
 
-Dự án RAG Benchmarking yêu cầu sự phối hợp chặt chẽ giữa 4 thành viên để đảm bảo tính nhất quán của dữ liệu (768-dim) và hiệu năng của hệ thống. Tài liệu này hướng dẫn cách thức tích hợp code và xử lý các lỗi phát sinh.
+## 2. Ràng buộc Môi trường Đồng nhất Hệ thống
+Đảm bảo tính nhất quán môi trường để kết quả đo kiểm hiệu suất được chính xác:
+- **Ngôn ngữ Code:** Bắt buộc tuân thủ mã hoá bằng Python 3.11 trong `venv` độc lập.
+- **Dependency:** Cài qua chung `requirements.txt` tránh phiên bản xung đột cho các công nghệ cốt yếu: `streamlit`, `langchain`, `pypdf`, SDK của 3 DB, `ollama`.
+- **Infrastructure:** Triển khai chung 1 file tổng lệnh `docker-compose.yml`. Mọi DB được khởi tạo đồng nhất chung 1 Network Bridge, phải áp đặt giới hạn bộ nhớ `mem_limit` chống sập OS host khi bật cả Milvus, Weaviate, Qdrant chạy cùng lúc.
+- **Tiêu chuẩn Dữ liệu:** Đồng bộ duy nhất một Embeddings Cục Bộ: Ollama API chạy model `nomic-embed-text` xuất chuẩn vector 768 chiều. Thư mục lấy nguồn chung là bộ 10 File PDF từ dữ kiện quá khứ. Cố định biến ngẫu nhiên hạt giống (`Fixed Seed`).
 
-## 1. Bản thống nhất kỹ thuật (Technical Specs Consensus)
+## 3. Chuẩn Giao Tiếp & Kiến Trúc Mở Rộng
+Việc thiết kế phải tuân thủ hướng đối tượng chuẩn để có thể gỡ bỏ / lắp ráp Module Benchmarking:
 
-| Hạng mục | Quy chuẩn bắt buộc | Ghi chú |
-| :--- | :--- | :--- |
-| **Dimension Pact** | **768** chiều | `nomic-embed-text` |
-| **Data Flow** | PDF -> Processor -> Embedding -> DB | Chuỗi xử lý tuần tự |
-| **Ollama Host** | `http://localhost:11434` | Phải chạy local |
-| **Return Type** | `List[str]` | Chỉ trả về text nguyên bản |
+```python
+# Ví dụ Cấu trúc Interface Cơ Bản Phải Tuân Phục
+class BaseVectorDB(ABC):
+    @abstractmethod
+    def connect(self): pass
+    
+    @abstractmethod 
+    @time_profiler # Bắt Buộc Đo Log Function Này
+    def insert(self, chunks: list, metadata: list): pass
+    
+    @abstractmethod
+    @time_profiler # Bắt Buộc Đo Log Function Này
+    def search(self, query: list, top_k: int = 5): pass
+```
+Ba cá nhân lập trình DB (B, C, D) tuyệt đối nối Interface chính xác với Orchestration Pipeline mà Người đảm nhận nền tảng A gọi xuống, tránh phát sinh lỗi sai lệch hàm khi Runtime thao tác Streamlit UI.
 
-## 2. Rủi ro tích hợp & Giải pháp (Integration Risks)
+## 4. Quản lý Source Code Control (GitHub)
+- **Branching Rule:** Tất cả commit chia việc phải tạo nhánh riêng, Format: `task/<giai_doan>/<member_id>/<ten_tinh_nang>`. VD: `task/G2/memA/streamlit-dashboard`.
+- **Merge Logic:** Muốn merge vào master / main branch bắt buộc phải có Pull Request, đồng thời yêu cầu 1 người đồng thuận phê duyệt. Tuyệt đối không commit linh tinh vào Master.
+- **Commit Format:** Rành mạch: `[DB/Thành_Phần] Action: Description` để dễ track lịch sử. VD: `[QDRANT] Add: Payload filter structure`.
 
-> [!CAUTION]
-> **Docker Port Conflict:** 19530 (Milvus), 8080 (Weaviate), 6333 (Qdrant). Tránh thay đổi port để không làm gãy kết nối từ `app.py`.
-> **OOM (Out of Memory):** Nếu chạy cả 3 DB + Embedding + LLM, RAM có thể vượt 8GB. Giải pháp: Tắt các database không dùng đến khi bench database khác.
-> **Schema Conflict:** Các thành viên B, C, D cần đặt tên Collection khác nhau hoặc xóa cũ tạo mới khi khởi động để tránh rác dữ liệu.
-
-## 3. Kịch bản Demo Seminar Chi tiết (Live Demo Playbook)
-
-| Thời gian | Hành động cụ thể | Phụ trách | Kết quả mong đợi |
-| :--- | :--- | :--- | :--- |
-| **T-10m** | Kiểm tra kết nối Docker & Ollama | Toàn đội | 3 DB Ready, Ollama live |
-| **00:00** | Giới thiệu Kiến trúc & Mục tiêu | A | Khán giả hiểu luồng RAG |
-| **05:00** | Upload PDF & Ingestion Demo | B, C, D | Log nạp hiển thị trên UI |
-| **15:00** | Phân tích biểu đồ Benchmarking | Toàn đội | Biểu đồ Radar so sánh trực quan |
-| **25:00** | Câu hỏi thực tế (Chatbot RAG) | A | LLM trả lời đúng dựa trên PDF |
-
-## 4. Kế hoạch đồng bộ Code (Sync Schedule)
-
-- **Daily Sync (15 phút):** Cập nhật các thay đổi trong `BaseVectorDB` interface.
-- **Integration Milestone (Tuần 3):** Ghép nối thử nghiệm 3 client DB vào giao diện Streamlit.
-- **Dry Run (Tuần 4):** Quay video demo dự phòng (Fallback) phòng trường hợp mạng/phần cứng lỗi.
-
----
-
-## Checklist Tích hợp Nhóm
-
-- [x] Thống nhất file `docker-compose.yml` duy nhất tại root.
-- [ ] Kiểm tra tính kế thừa của `BaseVectorDB` trong từng file client.
-- [ ] Chạy thử file `app.py` với tính năng chuyển đổi DB linh hoạt (Switching).
-- [ ] Đảm bảo file `metrics.csv` được ghi đúng định dạng để vẽ biểu đồ.
+## 5. Output Giao Nộp Thành Phẩm (Deliverables)
+Để bài báo cáo được đánh giá tốt nhất, nhóm nộp đầy đủ các học liệu sau vào tuần 4:
+1. **Source Code Zip:** Có kẹp `README.md` chuyên nghiệp với hướng dẫn gõ duy nhất `docker compose up` là thầy giáo test lại được y hệt không lệch 1 mili giây kết quả. Tập trung logging lưu về `data/metrics.csv`.
+2. **Báo Cáo Word (Technical Report):** Cỡ 10-15 trang; So sánh tường minh Architecture Diagram của từng CSDL, giải phẫu bảng giá, số sao Github, tốc độ lõi (C++, Rust, Go) mà không dùng máy sinh nội dung.
+3. **Thuyết trình Slide Present:** Báo cáo thời lượng 30 phút. Rút gọn cấu hình, trực diện demo Trade-offs sức mạnh 3 cơ sở dữ liệu qua Bar/Radar Chart. 
+4. **Video Demo Live:** Demo mượt mà không lỗi hệ thống chức năng hỏi đáp cùng file PDF môn học. Cả 4 thành viên am hiểu kỹ càng để luân phiên đối đáp với Teacher trong phần Hỏi-Đáp.

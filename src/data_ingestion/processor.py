@@ -1,22 +1,37 @@
-import os
-from typing import List, Tuple
-# from langchain_community.document_loaders import PyPDFLoader
-# from langchain.text_splitter import RecursiveCharacterTextSplitter
-# from langchain_community.embeddings import OpenAIEmbeddings
+import io
+from typing import List
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from src.config import CHUNK_SIZE, CHUNK_OVERLAP
+from src.utils.logger import logger
 
-def load_and_chunk_pdf(file_path_or_bytes) -> List[str]:
+def load_and_chunk_pdf(file_path: str) -> List[str]:
     """
-    Receives a PDF file, uses PyPDFLoader to read and split it via RecursiveCharacterTextSplitter.
-    Returns a List of text chunks (~1000 characters each).
+    Load a PDF and split into chunks.
+    Note: For Streamlit uploaded files, we usually need to save them temporarily or use a different loader.
     """
-    # TODO: Implement PyPDFLoader and RecursiveCharacterTextSplitter logic
-    print(f"Processing PDF payload: {file_path_or_bytes}")
-    return ["Dummy chunk context 1", "Dummy chunk context 2"]
+    try:
+        loader = PyPDFLoader(file_path)
+        documents = loader.load()
+        
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=CHUNK_SIZE,
+            chunk_overlap=CHUNK_OVERLAP,
+            separators=["\n\n", "\n", ".", "!", "?", " ", ""]
+        )
+        
+        chunks = splitter.split_documents(documents)
+        logger.info(f"Loaded {len(documents)} pages and split into {len(chunks)} chunks.")
+        
+        return [chunk.page_content for chunk in chunks]
+    except Exception as e:
+        logger.error(f"Error processing PDF {file_path}: {e}")
+        return []
 
-def embed_chunks(chunks: List[str]) -> List[List[float]]:
-    """
-    Sends the list of chunks to OpenAI Embeddings API (or HuggingFace local models).
-    Returns an array of float vectors.
-    """
-    # TODO: Implement OpenAIEmbeddings logic to generate 1536-dimensional vectors
-    return [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+def chunk_text(text: str) -> List[str]:
+    """Directly chunk text if already extracted"""
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP
+    )
+    return splitter.split_text(text)

@@ -1,56 +1,34 @@
-# PERSON A: Lê Xuân Trí - RAG Architect & Frontend UI/UX
+# Kế Hoạch Cá Nhân - Thành Viên A (Lê Xuân Trí)
+**Vai trò:** RAG Architect & Frontend UI/UX
+**Kỹ năng bổ trợ:** Python Streamlit, LangChain, CSS
 
-## Cá nhân chịu trách nhiệm: Lê Xuân Trí
+## 1. Mục tiêu công việc
+Chịu trách nhiệm kiến trúc luồng dữ liệu (RAG), xây dựng giao diện Streamlit, thiết lập pipeline xử lý tài liệu PDF và tổng hợp Dashboard báo cáo Benchmarking giữa 3 hệ quản trị Qdrant, Weaviate, Milvus. Đảm bảo toàn bộ hệ thống tích hợp chạy mượt mà theo cấu trúc Master Plan.
 
-- **Vai trò:** Kiến trúc sư hệ thống RAG, phát triển luồng xử lý dữ liệu và giao diện người dùng.
-- **Mục tiêu:** Xây dựng hệ thống ổn định, tích hợp LLM và hiển thị Benchmarking trực quan.
+## 2. Phân công chi tiết (Detailed Timeline)
 
-## 1. Phân công nhiệm vụ chi tiết (Detailed Task Breakdown)
+### Tuần 1: Thiết lập Hệ thống Core RAG
+- Nghiên cứu và hiện thực logic trích xuất text và quản lý bảng biểu/hình ảnh từ PDF (Module Optional nhưng ưu tiên).
+- Khởi tạo thư mục dự án chuẩn theo cấu trúc `src/app.py`, `src/config.py`, và thiết lập luồng vận hành bằng GitHub CI/CD cơ bản.
+- Lập trình `processor.py` sử dụng thư viện LangChain tập trung vào việc đọc chia text PDF ra thành dạng chunks với quy tắc chia ổn định.
+- Tích hợp được Ollama API Local nhằm mục đích tạo cơ chế sinh Embeddings miễn phí nhưng hiệu năng cao (sử dụng model `nomic-embed-text` cho embedding kích thước 768 chiều).
 
-| Giai đoạn | Công việc chi tiết | Phương thức thực hiện | Kết quả đầu ra cụ thể |
-| :--- | :--- | :--- | :--- |
-| **Giai đoạn 1** | Xây dựng pipeline xử lý PDF & Embedding | Sử dụng `PyPDFLoader` & `RecursiveCharacterTextSplitter` | File `processor.py` và `embedder.py` ổn định |
-| **Giai đoạn 1.2** | Kết nối Ollama API Local | Gọi `OllamaEmbeddings` từ LangChain | Vector chuẩn 768 chiều cho mọi chunk |
-| **Giai đoạn 2** | Dashboard Streamlit & Chatflow | Sử dụng `st.chat_message`, `st.sidebar` | Giao diện Chatbot có Sidebar chọn DB & Top-K |
-| **Giai đoạn 2.2** | Xây dựng Prompt Engineering | System prompt tối ưu cho Qwen3.5 | Câu trả lời từ LLM bám sát nội dung PDF |
-| **Giai đoạn 3** | Công cụ đo lường & Biểu đồ Plotly | Tích hợp dữ liệu từ `metrics.csv` | Dashboard hiển thị Bar/Radar Chart tương tác |
-| **Giai đoạn 3.2** | Stress Test luồng Ingestion | Chạy thử với tệp PDF 100+ trang | Lưu log thời gian xử lý toàn hệ thống |
-| **Giai đoạn 4** | Đóng gói Code & Slide Canva | Kiểm tra tính nhất quán thư mục `src/` | Repo Github sạch sẽ & Slide thuyết trình |
+### Tuần 2: Xây triển Giao diện & Data Orchestration 
+- Xây dựng Layout Streamlit bao gồm Menu điều hướng Tabs, Sidebar và Cấu hình parameter.
+- Triển khai chức năng Chat Interface giúp người dùng thao tác tương tác như 1 Agent, cho phép đính kèm tệp PDF lên server cục bộ.
+- Xây dựng phần Prompt Generation & điều phối LLM Pipeline. Viết Code tiếp nhận Vector Documents lấy về từ 3 Database, thiết kế Context chuẩn xác để mô hình LLM Qwen3.5 đọc hiểu và trả lời ngôn ngữ tự nhiên. 
 
-## 2. Đầu ra mong đợi kỹ thuật (Technical Deliverables)
+### Tuần 3: Xây dựng Benchmarking Dashboard Analytic
+- Tập trung đo sự hiệu quả của Ingestion Time (Toàn bộ thời gian xử lý E2E) từ khi User tải file PDF đến lúc Vector được nhúng hoàn toàn vào Database.
+- Thiết kết phần Backend thu thập dữ liệu chỉ số log thô vào file log trung tâm `metrics.csv`.
+- Tận dụng `Plotly/Altair` dựng hệ thống Dashboard hiển thị so sánh động Bar Chart và Radar Chart biểu thị cho Latency của 3 CSDL cũng như tính ổn định thông lượng.
 
-| Sản phẩm | Thông số kỹ thuật yêu cầu | Chỉ số KPI đánh giá |
-| :--- | :--- | :--- |
-| **Pipeline Xử lý** | `chunk_size: 1000`, `overlap: 200` | Tỷ lệ trích xuất text thành công 100% |
-| **LLM Orchestration** | Gọi được Qwen3.5 local qua Ollama | Thời gian sinh câu trả lời (TTFT) < 1.5s |
-| **Visualization** | Vẽ được biểu đồ Radar so sánh 3 tiêu chí | Hiển thị rõ RAM Spike & Search Latency |
+### Tuần 4: Đóng gói Báo Cáo & Thuyết Trình Seminar
+- Là người thiết kế Slide thuyết trình, đảm bảo Slide phản ánh được Trade-offs của 3 vector DB thông qua Biểu đồ so sánh thời gian và tài nguyên thay vì nhồi nhét cấu hình.
+- Phối hợp thành viên thiết kế các hình học minh hoạ (Architecture Diagram). 
+- Định hình lộ trình Demo Video, quản lý luồng kịch bản khi quay demo tránh dư thừa các màn khởi động Server.
 
-## 3. Quản lý Rủi ro & Cách khắc phục (Risk Mitigation)
-
-| Rủi ro | Giải pháp phòng ngừa | Thao tác khắc phục |
-| :--- | :--- | :--- |
-| **Lỗi Dimension (768)** | Luôn `assert length == 768` sau Embedding | Restart Ollama server và xóa collection cũ |
-| **Tràn RAM của LLM** | Giới hạn `max_tokens` của Qwen3.5 | Tắt các application không cần thiết trên OS host |
-| **Lỗi Encoding văn bản** | Sử dụng `utf-8` khi đọc & ghi payload | Dùng hàm `helpers.clean_text()` để chuẩn hóa |
-
-## 4. Checklist thực hiện chuyên sâu
-
-- [x] Lập sơ đồ kiến trúc luồng RAG kết nối 3 DB.
-- [ ] Implement `PDFProcessor` hỗ trợ đọc nhiều file cùng lúc.
-- [ ] Thiết lập file `config.py` dùng chung cho toàn đội (Port, Model).
-- [ ] Viết logic quản lý `st.session_state` cho lịch sử hội thoại.
-- [ ] Xây dựng bộ biểu đồ so sánh Hiệu năng (Speed) và Tài nguyên (RAM).
-- [ ] Kiểm tra tính tương thích của `requirements.txt` trên môi trường sạch.
-
-## 5. Đoạn mã giao tiếp mong đợi
-
-```python
-# src/data_ingestion/processor.py
-class RAGDataOrchestrator:
-    def __init__(self, model="nomic-embed-text"):
-        self.embed_client = OllamaEmbeddings(model=model)
-        
-    def run_pipeline(self, pdf_file):
-        # 1. Trích xuất -> 2. Chia nhỏ -> 3. Embedding -> 4. Giao cho DB Client
-        pass
-```
+## 3. Chỉ số Kỹ thuật Cần Đạt (KPIs)
+- Lớp Object `processor.py`: Trích xuất thành công nội dung chữ chuẩn tiếng Việt từ PDF. Output trung bình của độ dài chunks ở mức `1000` chars/chunk.
+- Lớp Ứng dụng `app.py`: Streamlit rendering mượt mà, quá độ chuyển trạng thái DB trơn tru, Load time dưới 2 giây. Tích hợp trực quan đẹp mắt và chuyên nghiệp.
+- Mọi vector gửi vào Database phải chính thức đi qua Validate định dạng hàm Dimension bằng 768.

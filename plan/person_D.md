@@ -1,54 +1,32 @@
-# PERSON D: Trần Lê Trung Trực - Qdrant Database Specialist
+# Kế Hoạch Cá Nhân - Thành Viên D (Trần Lê Trung Trực)
+**Vai trò:** Qdrant Database Specialist
+**Kỹ năng bổ trợ:** Rust Performance, Vector Algebra, API Design
 
-## Cá nhân chịu trách nhiệm: Trần Lê Trung Trực
+## 1. Mục tiêu công việc
+Đảm nhận vị trí Quản trị viên Chuyên trách CSDL **Qdrant**. Sản phẩm được phát triển bằng ngôn ngữ Rust tối ưu hoá cực đại bộ nhớ. Thành viên D mang nhiệm vụ cung cấp bằng chứng cho slide thuyết trình chứng tỏ Qdrant nhẹ gọn thế nào, xây dựng logic code python liên thông đẩy và vector hóa tìm kiếm, phục vụ Benchmark chung của toàn Master Plan.
 
-- **Vai trò:** Chuyên gia Qdrant, chịu trách nhiệm cho các tác vụ nạp và truy xuất dữ liệu từ Rust-based DB.
-- **Mục tiêu:** Chứng minh tốc độ và sự ổn định của Qdrant trong việc quản lý bộ nhớ RAM siêu nhẹ và xử lý payload văn bản.
+## 2. Phân công chi tiết (Detailed Timeline)
 
-## 1. Phân công nhiệm vụ chi tiết (Detailed Task Breakdown)
+### Tuần 1: Setup Môi trường Storage
+- Cài đặt Container đơn cấu trúc của Qdrant trên local bằng lệnh cấu hình Docker. Định nghĩa rõ Volume persistence sao cho Vector ghi được lưu dải chặt xuống Folder System host chứ không bay hơi khi Restart.
+- Tạo một kết nối thử thông qua Python client `qdrant-client` kiểm tra quyền Collection Management. Đính kèm khoảng cách phương pháp đo toán học bắt buộc `Distance.COSINE` vào cho `dim=768`.
 
-| Giai đoạn | Công việc chi tiết | Phương thức thực hiện | Kết quả đầu ra cụ thể |
-| :--- | :--- | :--- | :--- |
-| **Giai đoạn 1** | Cài đặt Qdrant với Docker | `image: qdrant/qdrant:latest` | Instance Qdrant chạy ổn định |
-| **Giai đoạn 1.2** | Cấu hình Persistence (Volume) | Map `/qdrant/storage` ra máy host | Dữ liệu không bị mất khi restart |
-| **Giai đoạn 2** | Triển khai Schema & CRUD | Sử dụng `qdrant-client v1.7+` | Collection "SeminarQdrant" có cấu hình Cosine |
-| **Giai đoạn 2.2** | Tối ưu nạp dữ liệu (PointStruct) | Sử dụng `client.upload_points()` | Nạp hàng nghìn points chỉ trong vài giây |
-| **Giai đoạn 3** | Đo lường Latency & RAM | Sử dụng `@time_profiler` & `docker stats` | Bản ghi `qdrant_ingest_ms` & `qdrant_query_ms` |
-| **Giai đoạn 3.2** | Kiểm chứng RAM usage cực thấp | So sánh bộ nhớ thực tế với DB khác | Chứng minh ưu thế của ngôn ngữ Rust |
-| **Giai đoạn 4** | Phân tích kỹ thuật báo cáo | Nghiên cứu kiến trúc Zero-cost abstractions | Báo cáo chi tiết về cơ chế quản lý bộ nhớ |
+### Tuần 2: Xử lý Payload và API Upload
+- Thể hiện sự nhất quán thông qua việc design pattern trong class `db_clients/qdrant.py`.
+- Tối ưu chu trình lưu trữ, tận dụng phương thức API `client.upload_points()` chuyên biệt của Qdrant, đẩy batching payload/metadata kèm với Vector thông tin cực nhanh từ LangChain TextSplitter.
+- Xử lý mượt mà tác vụ query. Viết bổ sung chức năng Payload Filtering (truy vấn kết hợp vector và điều kiện metadata như nguồn của document hoặc ID tài liệu) giúp RAG được gọn gàng tránh nhầm lẫn text context.
 
-## 2. Đầu ra mong đợi kỹ thuật (Technical Deliverables)
+### Tuần 3: Giám định Thực Quyền Performance (Benchmarking)
+- Trích xuất thông số log time chạy Python cho Ingestion tốc độ `qdrant_ingest_ms` cho chuẩn định 1000 vectors.
+- Điểm mạnh của Rust là RAM siêu nhẹ. Bắt tay vào chụp thực tế `ram_at_idle` và kiểm chứng khi Peak Ingestion thì biến động dao động như thế nào, sau đó đúc rút sang `metrics.csv`.
+- Theo sát quá trình search latency ổn định không nếu có cả hoạt động filter metadata lồng vào toán học C-Cosine.
 
-| Sản phẩm | Thông số kỹ thuật yêu cầu | Chỉ số KPI đánh giá |
-| :--- | :--- | :--- |
-| **Qdrant Client** | Hỗ trợ mô hình PointStruct chuẩn | Latency search (top-5) < 20ms |
-| **Collection Config** | `distance: Cosine`, `size: 768` | RAM Usage cực thấp (<150MB Idle) |
-| **Metrics Data** | Log chi tiết thời gian xử lý lô (Batch) | Tốc độ nạp (vector/giây) đạt mức cao |
+### Tuần 4: Paper Document Analysis
+- Thiết kế riêng báo cáo học thuyết phân tích lõi Rust tạo nên sức hút Zero-cost của Qdrant. Giải thích cấu tạo kỹ thuật chuyên sâu mang tên Binary Quantization (Tính năng nén định dạng vector mới nổi tiết kiệm tới 40 lần RAM).
+- Trích xuất tổng thị phần Qdrant Github (hiện đang Trending cực nóng), mô hình kiếm tiền theo Qdrant Cloud. Soạn Architecture Diagram khối hình.
+- Chuẩn bị Q&A thuyết trình trên lớp: Tại sao lại recommend Start-up ít tài nguyên sử dụng sản phẩm này? Tại sao API Qdrant thường được DEV Backend thích hơn?
 
-## 3. Quản lý Rủi ro & Cách khắc phục (Risk Mitigation)
-
-| Rủi ro | Giải pháp phòng ngừa | Thao tác khắc phục |
-| :--- | :--- | :--- |
-| **Mất dữ liệu sau restart** | Phải mount volume trong Docker Compose | Thực hiện snapshot backup định kỳ |
-| **Lỗi Unicode Payload** | Đảm bảo mã hóa UTF-8 khi nạp text | Dùng `helpers.clean_text()` xử lý đầu vào |
-| **Quá tải request đồng thời** | Giới hạn concurrency client-side | Implement hàng đợi truy vấn hoặc batching |
-
-## 4. Checklist thực hiện chuyên sâu
-
-- [x] Thiết lập Qdrant trong Docker Compose chung.
-- [ ] Implement hàm `connect()` trong `qdrant_client.py`.
-- [ ] Viết logic `insert()` sử dụng Batch upload points.
-- [ ] Hoàn thiện hàm `search()` trả về `List[str]` văn bản thuần.
-- [ ] Thực hiện đo lường RAM usage thực tế tại thời điểm stress test.
-- [ ] Đóng góp dữ liệu đo lường tài nguyên vào `metrics.csv`.
-
-## 5. Đoạn mã giao tiếp mong đợi
-
-```python
-# src/db_clients/qdrant_client.py
-class QdrantDBClient(BaseVectorDB):
-    def connect(self):
-        # Qdrant v1.7+ client connect to local
-        self.client = QdrantClient("localhost", port=6333)
-        # Create collection: Distance.COSINE, VectorParams(size=768)...
-```
+## 3. Chỉ số Kỹ thuật Cần Đạt (KPIs)
+- Kết nối thành công cho ra `search_latency_ms` siêu thấp. Đo đạc lượng RAM trơn tru và chứng thực bằng số cực đại là thấp hơn Weaviate.
+- Mã code Python phải rất tường minh, không block hàm, đặc biệt lưu tâm áp dụng decorator `@time_profiler` vào các điểm call mạng API để logging thời điểm.
+- Hỗ trợ sát sao Thành viên A trên Dashboard giúp các biểu đồ phản hồi trung thực sức mạnh Qdrant.

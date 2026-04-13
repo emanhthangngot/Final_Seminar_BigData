@@ -11,21 +11,31 @@ services:
       - ./qdrant_data:/qdrant/storage
     networks:
       - seminar_net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   weaviate:
     image: semitechnologies/weaviate:latest
     container_name: seminar_weaviate
     ports:
       - "8080:8080"
+      - "50051:50051"
     environment:
       QUERY_DEFAULTS_LIMIT: 25
       AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: ''
     volumes:
       - ./weaviate_data:/var/lib/weaviate
     networks:
       - seminar_net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   milvus-standalone:
     image: milvusdb/milvus:latest
@@ -44,6 +54,10 @@ services:
     depends_on:
       - etcd
       - minio
+    deploy:
+      resources:
+        limits:
+          memory: 2G
 
   etcd:
     container_name: seminar_milvus_etcd
@@ -55,7 +69,7 @@ services:
       - ETCD_SNAPSHOT_COUNT=50000
     volumes:
       - ./etcd_data:/etcd
-    command: etcd -advertise-client-urls=http://12 selected_engine_name.2.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
     networks:
       - seminar_net
 
@@ -73,6 +87,24 @@ services:
     command: minio server /minio_data --console-address ":9001"
     networks:
       - seminar_net
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: seminar_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_data:/root/.ollama
+    networks:
+      - seminar_net
+    # For GPU support (optional but recommended if available)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
 
 networks:
   seminar_net:

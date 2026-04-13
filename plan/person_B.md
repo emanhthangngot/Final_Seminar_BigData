@@ -1,54 +1,32 @@
-# PERSON B: Nguyễn Hồ Anh Tuấn - Weaviate Database Specialist
+# Kế Hoạch Cá Nhân - Thành Viên B (Nguyễn Hồ Anh Tuấn)
+**Vai trò:** Weaviate Database Specialist
+**Kỹ năng bổ trợ:** Docker, Golang Patterns, gRPC
 
-## Cá nhân chịu trách nhiệm: Nguyễn Hồ Anh Tuấn
+## 1. Mục tiêu công việc
+Đóng vai trò Chuyên gia cho mảng quản trị CSDL Vector **Weaviate**. Nhiệm vụ chính là đóng gói thiết lập cài đặt của Weaviate, xây dựng logic Python kết nối đẩy dữ liệu, tìm kiếm thông tin và đo lường trực tiếp tốc độ, hiệu năng của Weaviate trong bối cảnh kiến trúc RAG theo đúng yêu cầu Master Plan.
 
-- **Vai trò:** Chuyên gia Weaviate, chịu trách nhiệm cho các tác vụ nạp và truy xuất dữ liệu từ Golang-based DB.
-- **Mục tiêu:** Cung cấp kết nối gRPC ổn định, tối ưu hoá Batch Ingestion và truy vấn vector hiệu quả cao.
+## 2. Phân công chi tiết (Detailed Timeline)
 
-## 1. Phân công nhiệm vụ chi tiết (Detailed Task Breakdown)
+### Tuần 1: Setup Môi trường
+- Phân tích và viết file cấu hình cho Weaviate chạy stand-alone bằng Docker Compose, ưu tiên expose mạng gRPC tốc độ cao, đồng thời cấu hình port tiêu chuẩn (ví dụ 8080/REST và 50051/gRPC) để tránh đụng độ.
+- Nghiên cứu Schema trong Weaviate để thiết lập Collection chuẩn `RAGDocument` quy định cụ thể kiểu dữ liệu lưu trữ Text và Vector.
 
-| Giai đoạn | Công việc chi tiết | Phương thức thực hiện | Kết quả đầu ra cụ thể |
-| :--- | :--- | :--- | :--- |
-| **Giai đoạn 1** | Container hóa Weaviate | Docker Compose `image: semitechnologies/weaviate:latest` | Instance Weaviate chạy ổn định |
-| **Giai đoạn 1.2** | Cấu hình gRPC port 50051 | Mở port trong Docker và map ra host | Kết nối gRPC từ client Python thành công |
-| **Giai đoạn 2** | Triển khai Schema & CRUD | Sử dụng `weaviate-client v4` | Class `Document` có schema `content` (text) |
-| **Giai đoạn 2.2** | Tối ưu nạp dữ liệu (Batch) | Sử dụng `collection.batch.dynamic()` | Nạp hàng nghìn vectors chỉ trong vài giây |
-| **Giai đoạn 3** | Đo lường Latency & RAM | Sử dụng `@time_profiler` & `docker stats` | Bản ghi `weaviate_ingest_ms` & `weaviate_query_ms` |
-| **Giai đoạn 3.2** | Stress Test hiệu năng | Nạp 10,000 vectors và k6 test (nếu có) | Phân tích throughput cực đại của Weaviate |
-| **Giai đoạn 4** | Phân tích kỹ thuật báo cáo | Nghiên cứu kiến trúc Golang GC | Báo cáo chi tiết về cơ chế quản lý bộ nhớ |
+### Tuần 2: Xử lý Tích Hợp (Ingestion Pipeline)
+- Viết abstract implementer trong file Python `db_clients/weaviate.py`.
+- Lập trình thực hiện tối ưu thao tác Vector hoá lưu bằng Batch Data `collection.batch.dynamic()` giúp hạn chế tắc nghẽn IO. 
+- Xây dựng hàm tìm kiếm ANN Query ưu việt dựa vào đặc tính tối ưu của `nearVector` gọi hoàn toàn qua client gRPC từ Python SDK.
 
-## 2. Đầu ra mong đợi kỹ thuật (Technical Deliverables)
+### Tuần 3: Giám sát đo lường (Benchmarking Analytics)
+- Thiết lập thu thập thông số `weaviate_ingest_ms` tiêu thụ cho tác vụ chèn hàng loạt (Ví dụ lấy mốc 1000 vectors cho một chu kỳ log).
+- Giám sát RAM Resource tiêu dùng từ hệ lõi Golang của Weaviate bằng `docker stats`. Ghi chú cẩn thận sự dao động RAM lúc idle và lúc peak.
+- Phân tích hiệu suất kỹ thuật khi Weaviate dùng chức năng Batching. Phối hợp với A tích hợp số liệu lên CSV.
 
-| Sản phẩm | Thông số kỹ thuật yêu cầu | Chỉ số KPI đánh giá |
-| :--- | :--- | :--- |
-| **Weaviate Client** | Hỗ trợ gRPC v4 API mới nhất | Latency search (top-5) < 30ms |
-| **Schema Config** | `vectorizer: none`, `dim: 768` | Dữ liệu nạp vào không bị từ chối |
-| **Metrics Data** | Log chi tiết từng bước Ingest | Tốc độ nạp (vector/giây) đạt mức cao |
+### Tuần 4: Viết Report Academic Khoa Học
+- Dành thời gian hoàn thành section viết Word phân tích cụ thể bản chất Weaviate: Vì sao dùng hệ viết bằng Go? Ưu việt của Module System khi tích hợp mô hình ngoài so với DB khác là gì. Bảng giá License thực tế ra sao.
+- Trình bày một Architecture Diagram minh hoạ khối dịch vụ Weaviate.
+- Chuẩn bị nội dung kiến thức để Q&A đối chất: Hệ điều hành bộ nhớ Garbage Collection trong Go ảnh hưởng gì đến tốc độ truy vấn ở Weaviate?  
 
-## 3. Quản lý Rủi ro & Cách khắc phục (Risk Mitigation)
-
-| Rủi ro | Giải pháp phòng ngừa | Thao tác khắc phục |
-| :--- | :--- | :--- |
-| **Block port 50051** | Kiểm tra Firewall và Docker map | Restart Docker Engine và check `netstat` |
-| **Schema Mismatch** | Xây dựng hàm `init_schema()` tại `connect()` | Flush toàn bộ DB và tái lập Schema mới |
-| **OOM (Out of Memory)** | Giới hạn `mem_limit: 2GB` trong Docker | Tối ưu tham số `batch_size` nhỏ lại |
-
-## 4. Checklist thực hiện chuyên sâu
-
-- [x] Thiết lập Weaviate trong Docker Compose chung.
-- [ ] Implement hàm `connect()` trong `weaviate_client.py`.
-- [ ] Viết logic `insert()` sử dụng dynamic client-side batching.
-- [ ] Hoàn thiện hàm `search()` trả về `List[str]` văn bản thuần.
-- [ ] So sánh sự khác biệt về tốc độ giữa gRPC và REST (Bench nội bộ).
-- [ ] Đóng góp dữ liệu đo lường RAM vào `metrics.csv`.
-
-## 5. Đoạn mã giao tiếp mong đợi
-
-```python
-# src/db_clients/weaviate_client.py
-class WeaviateDBClient(BaseVectorDB):
-    def connect(self):
-        # Weaviate v4 Python client connect to local
-        self.client = weaviate.connect_to_local(port=8080, grpc_port=50051)
-        # Verify collection schema...
-```
+## 3. Chỉ số Kỹ thuật Cần Đạt (KPIs)
+- Kết nối thành công hệ thống python qua giao thức gRPC không báo lỗi time-out khi upload dữ liệu lớn.
+- Báo cáo rõ ràng hai chỉ tiêu: `latency_ms` cho từng thao tác search, cấu trúc `memory_usage_mb` tiêu hao khi hệ thống rảnh rỗi và đang nạp dữ liệu.
+- Phải đảm bảo bảo toàn dữ liệu bằng Docker Volumes để Weaviate khi tái sinh không bị format trắng bộ nhớ.

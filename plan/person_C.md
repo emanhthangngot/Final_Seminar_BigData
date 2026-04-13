@@ -1,54 +1,32 @@
-# PERSON C: Trần Hữu Kim Thành - Milvus Database Specialist
+# Kế Hoạch Cá Nhân - Thành Viên C (Trần Hữu Kim Thành)
+**Vai trò:** Milvus Database Specialist
+**Kỹ năng bổ trợ:** C++ Core Logic, etcd, Distributed Systems
 
-## Cá nhân chịu trách nhiệm: Trần Hữu Kim Thành
+## 1. Mục tiêu công việc
+Sắm vai Chuyên gia nền tảng về hệ CSDL Vector **Milvus**. Vận hành cụm Milvus Standalone (thường yêu cầu cả etcd và object storage đi kèm), tuỳ biến index HNSW, phân tích hệ lõi xử lý C++, đo lường hiệu năng chuyên sâu cho báo cáo hệ thống Benchmarking so sánh ba nền tảng để lấy điểm 10 theo kế hoạch Master Plan.
 
-- **Vai trò:** Chuyên gia Milvus, chịu trách nhiệm cho các tác vụ nạp và truy xuất dữ liệu từ C++ Distributed DB.
-- **Mục tiêu:** Tối ưu hoá tìm kiếm triệu vector thông qua HNSW Index và quản lý bộ nhớ RAM cho kiến trúc phân tán.
+## 2. Phân công chi tiết (Detailed Timeline)
 
-## 1. Phân công nhiệm vụ chi tiết (Detailed Task Breakdown)
+### Tuần 1: Thiết lập Hệ Sinh Thái Môi trường
+- Soạn thảo và viết `docker-compose.yml` cực chuẩn để run hệ sinh thái liên kết Milvus Standalone, etcd, và MinIO trong cùng một lớp network cục bộ.
+- Khởi tạo client Python, tạo Collection mẫu, sau đó mapping Schema trường thông tin đặc thù của Milvus (Id kiểu `Int64`, Embeddings kiểu `FloatVector`, quy chuẩn `dim=768`).
 
-| Giai đoạn | Công việc chi tiết | Phương thức thực hiện | Kết quả đầu ra cụ thể |
-| :--- | :--- | :--- | :--- |
-| **Giai đoạn 1** | Deploy Milvus Standalone | Docker Compose (milvus + etcd + minio) | Cụm DB Milvus hoạt động tốt |
-| **Giai đoạn 1.2** | Cấu hình gRPC port 19530 | Mở các port liên lạc nội bộ trong Docker | Kết nối thành công từ client Python |
-| **Giai đoạn 2** | Triển khai Schema & CRUD | Sử dụng `pymilvus v2.3+` | Collection "SeminarRAG" có Schema dim=768 |
-| **Giai đoạn 2.2** | Tối ưu Index HNSW | `metric_type: COSINE`, `index_type: HNSW` | Graph search cho kết quả tìm kiếm cực nhanh |
-| **Giai đoạn 3** | Đo lường Latency & RAM | Sử dụng `@time_profiler` & `docker stats` | Chỉ số `milvus_ingest_ms` & `milvus_query_ms` |
-| **Giai đoạn 3.2** | Phân tích RAM Spike | Quan sát bộ nhớ khi gọi `collection.load()` | Hiểu rõ cơ cấu In-memory search của Milvus |
-| **Giai đoạn 4** | Phân tích kỹ thuật báo cáo | Nghiên cứu kiến trúc C++ Core Milvus | Báo cáo chi tiết về Distributed Architecture |
+### Tuần 2: Rút gọn CRUD & Chuẩn bị Query Vector
+- Triển khai tệp mã nguồn chuyên dụng `db_clients/milvus.py` tích hợp chuẩn giao tiếp hệ thống.
+- Cài đặt hệ thống lệnh nạp luồng qua hàm `insert()`. Vận hành linh hoạt hành động `collection.flush()` bắt buộc phải có để niêm phong đoạn dữ liệu đĩa sau khi tải xuống. 
+- Tìm hiểu cấu hình tinh chỉnh thông số HNSW Index (ví dụ: tham số M=16, efConstruction=64) để tăng hiệu suất truy vấn gần nhất. Gọi thao tác `collection.load()` - 1 thủ tục bắt buộc ở Milvus nhằm kéo dữ liệu Index từ SSD lên RAM phục vụ truy vấn tối đa công năng.
 
-## 2. Đầu ra mong đợi kỹ thuật (Technical Deliverables)
+### Tuần 3: Giám Sát Tài Nguyên & Lấy Metrics
+- Kích hoạt Python code đo lường thời gian đáp ứng đẩy hàng loạt `milvus_ingest_ms`.
+- Lắng nghe hoạt động tài nguyên CPU Utilization thực thụ thông qua việc phân tích Monitor hoạt cảnh của cụm Milvus, etcd, minio.
+- Đánh giá sự kiện RAM Spike (Giật lên đỉnh tài nguyên ram) khi user ra lệnh gọi hàm Load() Data từ ổ đĩa lên bộ nhớ. Đưa báo cáo cụ thể độ trễ này có chấp nhận cho Real-time ko.
 
-| Sản phẩm | Thông số kỹ thuật yêu cầu | Chỉ số KPI đánh giá |
-| :--- | :--- | :--- |
-| **Milvus Client** | Hỗ trợ PyMilvus SDK ổn định | Latency search (top-5) < 50ms |
-| **Index Config** | `M: 16`, `efConstruction: 64` | Khả năng nạp data song song ổn định |
-| **Metrics Data** | Log chi tiết thời gian `flush()` và `load()` | Tốc độ load collection vào RAM |
+### Tuần 4: Sắp Xếp Trình Bày Document & Video Demo
+- Cống hiến kỹ năng viết báo cáo phần kiến trúc lõi của Milvus: Giải thích cấu tạo Coordinator Node/ Worker Node. Mô phỏng vì sao giới Big Data và Enterprise siêu lớn lại hay xài Milvus?
+- Khảo cứu đưa ra thực trạng thị trường: Số stars trên Github, mô hình kiếm tiền theo License của sản phẩm, hệ thống Cloud hiện hành.
+- Sắp xếp và triển khai Quay Video Demo mạch lạc nhất đối với phiên thực thi của riêng Milvus trong hệ thống RAG Ràng Buộc, bảo đảm luồng UI thực thi rõ ràng mà ko dồn dập lỗi môi trường.
 
-## 3. Quản lý Rủi ro & Cách khắc phục (Risk Mitigation)
-
-| Rủi ro | Giải pháp phòng ngừa | Thao tác khắc phục |
-| :--- | :--- | :--- |
-| **Treo RAM do Load toàn bộ** | Giới hạn số lượng collection load cùng lúc | Release collection không dùng khỏi RAM |
-| **Lỗi kết nối etcd/minio** | Đảm bảo `depends_on` trong Docker Compose | Restart cụm 3 containers DB đồng bộ |
-| **Lỗi Search khi chưa Load** | Thêm hàm kiểm tra `collection.is_loaded()` | Thực hiện `collection.load()` trước khi search |
-
-## 4. Checklist thực hiện chuyên sâu
-
-- [x] Thiết lập cụm Milvus (etcd, mini, standalone) trong Docker Compose.
-- [ ] Implement hàm `connect()` và `insert()` trong `milvus_client.py`.
-- [ ] Viết logic tạo chỉ mục HNSW sau khi đã nạp dữ liệu (Lazy Indexing).
-- [ ] Hoàn thiện hàm `search()` trả về `List[str]` văn bản thuần.
-- [ ] Thực hiện đo lường RAM Spike tại thời điểm `load()`.
-- [ ] Đóng góp dữ liệu đo lường tài nguyên vào `metrics.csv`.
-
-## 5. Đoạn mã giao tiếp mong đợi
-
-```python
-# src/db_clients/milvus_client.py
-class MilvusDBClient(BaseVectorDB):
-    def connect(self):
-        connections.connect("default", host="localhost", port="19530")
-        # Define fields: ID (Primary), Vec (Dim=768), Content (Str)
-        # Create Collection and Load into RAM...
-```
+## 3. Chỉ số Kỹ thuật Cần Đạt (KPIs)
+- Hoàn thiện lập chỉ mục, việc Search() diễn ra phản hồi bình thường sau thủ tục Load(), hệ thống hiển thị rành mạch `Index Ready`.
+- Cung cấp chính xác biến đo lường tốc độ tính theo `vectors/sec`, tính toán rạch ròi tỉ lệ ăn CPU theo core khi thực thi truy vấn HNSW.
+- Lưu ý rủi ro tài nguyên Milvus có thể yêu cầu nhiều GB disk và Ram, phải set limit memory trên yaml hợp logic.
