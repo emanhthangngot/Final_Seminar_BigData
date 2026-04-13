@@ -15,7 +15,7 @@ services:
           memory: 1G
 
   weaviate:
-    image: semitechnologies/weaviate:latest
+    image: semitechnologies/weaviate:1.27.2
     container_name: seminar_weaviate
     ports:
       - "8080:8080"
@@ -26,6 +26,8 @@ services:
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       DEFAULT_VECTORIZER_MODULE: 'none'
       ENABLE_MODULES: ''
+      CLUSTER_HOSTNAME: 'weaviate-node-1'
+      CLUSTER_BOOTSTRAP_EXPECT: 1
     volumes:
       - ./volumes/weaviate_data:/var/lib/weaviate
     networks:
@@ -109,7 +111,7 @@ services:
         while ! curl -s http://ollama:11434/api/tags >/dev/null; do sleep 3; done;
         echo 'Ollama is Active. Pulling required models (nomic-embed-text and qwen:3.6)...';
         curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"nomic-embed-text\"}';
-        curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"qwen:3.6\"}';
+        curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"qwen2.5:3b\"}';
         echo 'Model pull requests completed.';
       "
 

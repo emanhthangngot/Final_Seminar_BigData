@@ -25,7 +25,7 @@ from src.core.benchmark.profiler import time_profiler
 from src.core.utils.logger import logger
 
 
-COLLECTION_NAME = "SeminarKnowledgeBase"
+COLLECTION_NAME = "SeminarKnowledge_Base"
 
 
 # [TODO — Person D] When creating the collection, pass INDEX_PARAMS["M"] and
