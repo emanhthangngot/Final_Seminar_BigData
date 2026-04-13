@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 # Project Imports
-from src.config import METRICS_FILE, MOCK_MODE
+from src.config import METRICS_FILE, MOCK_MODE, BENCH_CORPUS_SIZE, BENCH_NUM_QUERIES
 from src.core.data_ingestion.processor import load_and_chunk_pdf
 from src.core.data_ingestion.embedder import Embedder
 from src.core.data_ingestion.generator import LLMGenerator
@@ -15,6 +15,8 @@ from src.core.db_clients.weaviate import WeaviateWrapper
 from src.core.db_clients.milvus import MilvusWrapper
 from src.core.benchmark.resource_monitor import get_all_stats
 from src.core.benchmark.stress_test import run_stress_test
+from src.core.benchmark.evaluator import run_accuracy_benchmark
+from src.core.benchmark.tradeoff import run_tradeoff_sweep
 from src.core.utils.logger import logger
 
 st.set_page_config(page_title="RAG Benchmark | Vector Database", layout="wide")
@@ -225,8 +227,14 @@ def main():
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # --- Benchmark Dashboard ---
-    with st.expander("Performance Telemetry (Live)", expanded=True):
+    # --- Benchmark Dashboard V2 ---
+    st.subheader("Benchmark Analytics V2")
+    tab_latency, tab_accuracy, tab_tradeoff, tab_hybrid, tab_filter, tab_dx = st.tabs([
+        "⚡ Latency", "🎯 Accuracy", "📈 Recall vs Latency",
+        "🔍 Hybrid Search", "⚙️ Filtering", "👨‍💻 DX Score",
+    ])
+    
+    with tab_latency:
         if METRICS_FILE.exists():
             try:
                 df = pd.read_csv(METRICS_FILE)
@@ -249,6 +257,111 @@ def main():
                 st.error(f"Telemetry Error: {e}")
         else:
             st.info("Execute ingestion/search to generate telemetry.")
+
+    with tab_accuracy:
+        st.markdown("### Recall@K Leaderboard (Ground-Truth = Chunk ID)")
+        st.info(
+            f"Evaluator builds a deterministic synthetic corpus of "
+            f"**{BENCH_CORPUS_SIZE} chunks** and **{BENCH_NUM_QUERIES} golden queries**. "
+            "Each chunk carries a unique `[CID:…]` tag so retrieval is scored by exact identity "
+            "(Recall@1/5/10 + MRR). Ingestion is reproducible — same seed, same vectors, same DB set-up."
+        )
+        col_a, col_b = st.columns(2)
+        with col_a:
+            corpus_size = st.number_input("Corpus size", min_value=100, max_value=200000, value=BENCH_CORPUS_SIZE, step=500)
+        with col_b:
+            num_queries = st.number_input("Golden queries", min_value=10, max_value=2000, value=BENCH_NUM_QUERIES, step=10)
+        ingest_flag = st.checkbox("Ingest corpus before evaluation", value=True,
+                                  help="Uncheck if the corpus is already loaded from a previous run.")
+
+        if st.button("Run Accuracy Benchmark"):
+            prog = st.progress(0)
+            status = st.empty()
+
+            def _cb(cur, total, msg):
+                prog.progress(cur / total)
+                status.text(msg)
+
+            with st.spinner("Running ground-truth evaluation across all databases..."):
+                acc_df = run_accuracy_benchmark(
+                    db_catalog, embedder,
+                    corpus_size=int(corpus_size),
+                    num_queries=int(num_queries),
+                    ingest=ingest_flag,
+                    progress_callback=_cb,
+                )
+            prog.progress(1.0)
+            status.text("Evaluation complete.")
+
+            if not acc_df.empty:
+                st.dataframe(acc_df, use_container_width=True)
+                fig_acc = px.bar(
+                    acc_df, x="Engine",
+                    y=["Recall@1", "Recall@5", "Recall@10"],
+                    barmode="group",
+                    title="Recall@K (% — higher is better)",
+                )
+                fig_acc.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(fig_acc, use_container_width=True)
+
+                fig_mrr = px.bar(acc_df, x="Engine", y="MRR", title="Mean Reciprocal Rank")
+                fig_mrr.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(fig_mrr, use_container_width=True)
+            else:
+                st.warning("Evaluator returned an empty result set.")
+
+    with tab_tradeoff:
+        st.markdown("### Recall vs Latency Pareto Curve")
+        st.info(
+            "Sweeps `top_k ∈ {1,2,5,10,20,50}` per engine on the same golden set. "
+            "Points further to the **top-left** are better (higher recall, lower latency). "
+            "This is the fairest single-chart comparison — it shows the whole accuracy/speed frontier instead of one number."
+        )
+        tradeoff_ingest = st.checkbox("Ingest before sweep", value=False, key="tradeoff_ingest")
+        if st.button("Run Tradeoff Sweep"):
+            prog = st.progress(0)
+            status = st.empty()
+
+            def _cb2(cur, total, msg):
+                prog.progress(cur / total)
+                status.text(msg)
+
+            with st.spinner("Sweeping top_k values across all engines..."):
+                td_df = run_tradeoff_sweep(
+                    db_catalog, embedder,
+                    ingest=tradeoff_ingest,
+                    progress_callback=_cb2,
+                )
+            prog.progress(1.0)
+            status.text("Sweep complete.")
+
+            if not td_df.empty:
+                st.dataframe(td_df, use_container_width=True)
+                fig_td = px.line(
+                    td_df, x="AvgLatency_ms", y="Recall",
+                    color="Engine", markers=True,
+                    title="Recall vs Avg Latency (top-left = best)",
+                )
+                fig_td.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(fig_td, use_container_width=True)
+
+    with tab_hybrid:
+        st.markdown("### Hybrid Search (Vector + Keyword) vs. Dense Vector")
+        st.info("Tính năng này đã được giao chéo cho Person B (Weaviate), Person C (Milvus), Person D (Qdrant). Team hãy implement `search_hybrid()` trên UI để xem biểu đồ này.")
+        
+    with tab_filter:
+        st.markdown("### Metadata Filtering Performance")
+        st.info("Biểu đồ thể hiện độ biến thiên của Latency khi điều kiện Filter (boolean, greater_than...) ngày càng phức tạp.")
+
+    with tab_dx:
+        st.markdown("### Developer Experience (DX) Matrix")
+        st.info("Đo lường độ khó code của từng SDK. Số điểm UX càng thấp chứng tỏ API SDK đó càng dễ dùng (Ít dòng code, ít method cần gọi hơn).")
+        if st.button("Run DX Analyzer"):
+            from src.core.utils.dx_analyzer import analyze_dx
+            dx_results = analyze_dx()
+            dx_df = pd.DataFrame.from_dict(dx_results, orient='index').reset_index()
+            dx_df = dx_df.rename(columns={'index': 'Engine'})
+            st.dataframe(dx_df, use_container_width=True)
 
     # --- Resource Monitor ---
     with st.expander("System Resources (Docker Containers)", expanded=False):
