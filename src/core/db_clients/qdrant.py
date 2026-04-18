@@ -46,11 +46,18 @@ class QdrantWrapper(BaseVectorDB):
                     size=VECTOR_DIM,
                     distance=models.Distance.COSINE,
                 ),
+                # ========== FAIRNESS PROTOCOL ==========
+                # Truyền tham số HNSW từ config chung, KHÔNG hardcode
+                hnsw_config=models.HnswConfigDiff(
+                    m=INDEX_PARAMS["M"],                          # 16
+                    ef_construct=INDEX_PARAMS["ef_construction"], # 128
+                ),
             )
-            logger.info(f"[Qdrant] Collection '{self.collection_name}' created.")
+            logger.info(f"[Qdrant] Collection '{self.collection_name}' created "
+                        f"with HNSW M={INDEX_PARAMS['M']}, ef_construct={INDEX_PARAMS['ef_construction']}.")
         else:
             logger.info(f"[Qdrant] Collection '{self.collection_name}' already exists.")
-            
+
     @time_profiler
     def insert(
         self,
@@ -78,12 +85,16 @@ class QdrantWrapper(BaseVectorDB):
 
     @time_profiler
     def search(self, query_embedding: List[float], top_k: int = 5) -> List[str]:
-        results = self.client.search(
+        results = self.client.query_points(
             collection_name=self.collection_name,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=top_k,
+            # Fairness: dùng cùng ef_search với Weaviate & Milvus
+            search_params=models.SearchParams(
+                hnsw_ef=INDEX_PARAMS["ef_search"],  # 64
+            ),
         )
-        return [hit.payload.get("document_text", "") for hit in results]
+        return [hit.payload.get("document_text", "") for hit in results.points]
 
     @time_profiler
     def search_hybrid(
