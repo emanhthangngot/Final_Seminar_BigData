@@ -1,13 +1,25 @@
-streamlit>=1.32.0
+# Backend / Core
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.1
+pydantic>=2.7.0
+python-multipart>=0.0.9
+
+# RAG & Embeddings
 langchain>=0.1.13
 langchain-community>=0.0.29
 langchain-text-splitters>=0.0.1
-plotly>=5.20.0
-pandas>=2.2.1
-python-dotenv>=1.0.1
 pypdf>=4.1.0
+
+# Database Clients
 qdrant-client>=1.8.0
 weaviate-client>=4.5.3
 pymilvus>=2.3.6
+
+# Data & Utils
+pandas>=2.2.1
+python-dotenv>=1.0.1
 docker>=7.0.0
 psutil>=5.9.0
+
+# Code Analysis (DX Score)
+radon>=6.0.1
