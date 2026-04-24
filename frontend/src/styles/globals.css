@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: #050506;
+    color: #eaeaea;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(10, 10, 15, 0.5);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(94, 106, 210, 0.4);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(124, 58, 237, 0.6);
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface-card border border-border rounded-xl backdrop-blur-sm;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .card-glow {
+    @apply card;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(94, 106, 210, 0.1);
+  }
+
+  .btn-primary {
+    @apply bg-gradient-primary text-white font-semibold px-6 py-2.5 rounded-lg
+           transition-all duration-200 cursor-pointer select-none
+           hover:-translate-y-0.5 hover:shadow-glow-accent active:translate-y-0
+           disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent border border-border text-gray-300 font-medium px-4 py-2 rounded-lg
+           transition-all duration-150 cursor-pointer select-none
+           hover:border-border-bright hover:text-white
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .metric-value {
+    @apply font-mono text-2xl font-bold text-white;
+  }
+
+  .metric-label {
+    @apply text-xs font-medium uppercase tracking-widest text-gray-400;
+  }
+
+  .tab-active {
+    @apply text-white border-b-2 border-primary;
+  }
+
+  .tab-inactive {
+    @apply text-gray-400 border-b-2 border-transparent hover:text-gray-200 hover:border-gray-600;
+  }
+
+  .db-badge-qdrant {
+    @apply text-qdrant bg-qdrant/10 border border-qdrant/30;
+  }
+
+  .db-badge-weaviate {
+    @apply text-weaviate bg-weaviate/10 border border-weaviate/30;
+  }
+
+  .db-badge-milvus {
+    @apply text-milvus bg-milvus/10 border border-milvus/30;
+  }
+
+  .skeleton {
+    @apply rounded animate-pulse bg-gradient-to-r from-white/5 via-white/10 to-white/5;
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+}
