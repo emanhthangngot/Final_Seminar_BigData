@@ -3,14 +3,33 @@
 ## 1. Mục tiêu Tối Thượng
 Hoàn thiện toàn bộ bài Benchmark kiểm thử RAG Project. Nhằm mục đích thuyết trình phân tích Seminar môn Big Data trực quan, có giá trị học thuật điểm 10, chứng thực những Trade-offs so sánh tài nguyên của hệ ba Vector Database lớn: Qdrant, Weaviate, Milvus.
 
-## 2. Ràng buộc Môi trường Đồng nhất Hệ thống
-Đảm bảo tính nhất quán môi trường để kết quả đo kiểm hiệu suất được chính xác:
-- **Ngôn ngữ Code:** Bắt buộc tuân thủ mã hoá bằng Python 3.11 trong `venv` độc lập.
-- **Dependency:** Cài qua chung `requirements.txt` tránh phiên bản xung đột cho các công nghệ cốt yếu: `streamlit`, `langchain`, `pypdf`, SDK của 3 DB, `ollama`.
-- **Infrastructure:** Triển khai chung 1 file tổng lệnh `docker-compose.yml`. Mọi DB được khởi tạo đồng nhất chung 1 Network Bridge, phải áp đặt giới hạn bộ nhớ `mem_limit` chống sập OS host khi bật cả Milvus, Weaviate, Qdrant chạy cùng lúc.
-- **Tiêu chuẩn Dữ liệu:** Đồng bộ duy nhất một Embeddings Cục Bộ: Ollama API chạy model `nomic-embed-text` xuất chuẩn vector 768 chiều. Thư mục lấy nguồn chung là bộ 10 File PDF từ dữ kiện quá khứ. Cố định biến ngẫu nhiên hạt giống (`Fixed Seed`).
+Hệ thống được xây dựng dưới dạng **Full-Stack Web Application**:
+- **Frontend:** React 18 + Three.js + Vite (chạy tại `http://localhost:5173`)
+- **Backend:** FastAPI MVC (chạy tại `http://localhost:8000`)
+- **Core:** `src/core/` Python modules — dùng chung bởi backend và CLI
 
-## 3. Chuẩn Giao Tiếp & Fairness Protocol
+## 2. Ràng buộc Môi trường Đồng nhất Hệ thống
+
+- **Ngôn ngữ Code:** Python 3.11 (backend + core), Node 20 LTS (frontend).
+- **Python Dependency:** `requirements.txt` + `backend/requirements.txt`.
+- **Frontend Dependency:** `frontend/package.json` (npm install).
+- **Infrastructure:** `docker-compose.yml` — 1 lệnh `docker compose up` chạy tất cả.
+- **Tiêu chuẩn Dữ liệu:** Ollama `nomic-embed-text` → vector 768 chiều. Fixed Seed = 42.
+
+## 3. Luồng Dữ Liệu (Data Flow)
+
+```
+User Browser (React + Three.js)
+    ↓ HTTP/JSON
+FastAPI Backend (:8000/api/v1/*)
+    ↓ Python function calls
+src/core/ (shared business logic)
+    ↓ Python SDK
+Vector DBs (Qdrant :6333 | Weaviate :8080 | Milvus :19530)
+    + Ollama (:11434)
+```
+
+## 4. Chuẩn Giao Tiếp & Fairness Protocol
 
 Việc thiết kế phải tuân thủ hướng đối tượng và phục vụ 4 trụ cột đánh giá:
 **Latency · Recall@K / MRR · Recall-vs-Latency Pareto Curve · DX Matrix**.
@@ -32,34 +51,70 @@ from src.config import INDEX_PARAMS  # {metric, index_type, M, ef_construction, 
 Reviewer (A) sẽ reject PR nếu wrapper nào còn literal `M=16` / `ef=64` hardcoded.
 
 ```python
-# Cấu trúc Interface bắt buộc tại src/core/db_clients/base.py
+# Interface bắt buộc tại src/core/db_clients/base.py
 class BaseVectorDB(ABC):
     @abstractmethod
     def connect(self): pass
-    
-    @abstractmethod 
+
+    @abstractmethod
     @time_profiler
     def insert(self, chunks: list, metadata: list): pass
-    
-    @abstractmethod
-    @time_profiler
-    def search(self, query: list, top_k: int = 5): pass
 
     @abstractmethod
     @time_profiler
-    def search_hybrid(self, query_text: str, query_embedding: list, filters: dict, top_k: int = 5): pass
-```
-```
-Ba cá nhân lập trình DB (B, C, D) tuyệt đối nối Interface chính xác với Orchestration Pipeline mà Người đảm nhận nền tảng A gọi xuống, tránh phát sinh lỗi sai lệch hàm khi Runtime thao tác Streamlit UI.
+    def search(self, query: list, top_k: int = 5) -> list[str]: pass
 
-## 4. Quản lý Source Code Control (GitHub)
-- **Branching Rule:** Tất cả commit chia việc phải tạo nhánh riêng, Format: `task/<giai_doan>/<member_id>/<ten_tinh_nang>`. VD: `task/G2/memA/streamlit-dashboard`.
-- **Merge Logic:** Muốn merge vào master / main branch bắt buộc phải có Pull Request, đồng thời yêu cầu 1 người đồng thuận phê duyệt. Tuyệt đối không commit linh tinh vào Master.
-- **Commit Format:** Rành mạch: `[DB/Thành_Phần] Action: Description` để dễ track lịch sử. VD: `[QDRANT] Add: Payload filter structure`.
+    @abstractmethod
+    @time_profiler
+    def search_hybrid(self, query_text: str, query_embedding: list, filters: dict, top_k: int = 5) -> list[str]: pass
+```
 
-## 5. Output Giao Nộp Thành Phẩm (Deliverables)
-Để bài báo cáo được đánh giá tốt nhất, nhóm nộp đầy đủ các học liệu sau vào tuần 4:
-1. **Source Code Zip:** Có kẹp `README.md` chuyên nghiệp với hướng dẫn gõ duy nhất `docker compose up` là thầy giáo test lại được y hệt không lệch 1 mili giây kết quả. Tập trung logging lưu về `src/core/benchmark/metrics.csv`. Dữ liệu vật lý nằm trong `./volumes/`.
-2. **Báo Cáo Word (Technical Report):** Cỡ 10-15 trang; So sánh tường minh Architecture Diagram của từng CSDL, giải phẫu bảng giá, số sao Github, tốc độ lõi (C++, Rust, Go) mà không dùng máy sinh nội dung.
-3. **Thuyết trình Slide Present:** Báo cáo thời lượng 30 phút. Rút gọn cấu hình, trực diện demo Trade-offs sức mạnh 3 cơ sở dữ liệu qua Bar/Radar Chart. 
-4. **Video Demo Live:** Demo mượt mà không lỗi hệ thống chức năng hỏi đáp cùng file PDF môn học. Cả 4 thành viên am hiểu kỹ càng để luân phiên đối đáp với Teacher trong phần Hỏi-Đáp.
+Ba cá nhân DB (B, C, D) tuyệt đối nối Interface chính xác với Orchestration Pipeline mà A gọi xuống qua FastAPI controllers.
+
+## 5. API Contract (Frontend ↔ Backend)
+
+| Endpoint | Method | Request | Response | Dùng ở React Page |
+| :--- | :--- | :--- | :--- | :--- |
+| `/api/v1/health` | GET | — | `{databases: {Qdrant: bool, ...}}` | Navbar, Dashboard |
+| `/api/v1/metrics` | GET | — | `list[MetricRow]` | `/latency` |
+| `/api/v1/ingest` | POST | `file: PDF, db: str` | `{chunks, ingest_ms}` | `/rag-chat` |
+| `/api/v1/chat` | POST | `{query, db}` | `{answer, latency_ms}` | `/rag-chat` |
+| `/api/v1/benchmark/accuracy` | POST | `{corpus_size, num_queries, ingest}` | `list[AccuracyResult]` | `/accuracy` |
+| `/api/v1/benchmark/tradeoff` | POST | `{ingest}` | `list[TradeoffResult]` | `/tradeoff` |
+| `/api/v1/benchmark/stress` | POST | `{rounds, chunks_per_round}` | `dict` | `/dashboard` |
+| `/api/v1/resources` | GET | — | `list[ResourceRow]` | `/latency` |
+| `/api/v1/dx` | GET | — | `{Qdrant: {sloc, ...}, ...}` | `/dx-score` |
+
+## 6. Quản lý Source Code Control (GitHub)
+
+- **Branching Rule:** `task/<giai_doan>/<member_id>/<ten_tinh_nang>`. VD: `task/G2/memA/react-dashboard`.
+- **Merge Logic:** Muốn merge vào `main` bắt buộc phải có Pull Request, yêu cầu 1 người approve.
+- **Commit Format:** `[LAYER/DB] Action: Description`. VD: `[FRONTEND] feat: VectorSpaceScene Three.js`.
+
+## 7. Hướng dẫn Khởi Động (Quick Start)
+
+```bash
+# Option 1: Docker (production-like)
+docker compose up -d
+# → Frontend: http://localhost:5173
+# → Backend API: http://localhost:8000/docs
+
+# Option 2: Development (hot reload)
+# Terminal 1 — Backend
+cd backend
+pip install -r ../requirements.txt -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+
+# Terminal 2 — Frontend
+cd frontend
+npm install
+npm run dev
+# → http://localhost:5173
+```
+
+## 8. Output Giao Nộp Thành Phẩm (Deliverables)
+
+1. **Source Code Zip:** `README.md` hướng dẫn `docker compose up` → thầy giáo test được.
+2. **Báo Cáo Word (Technical Report):** 10-15 trang, Architecture Diagram từng CSDL + Full-Stack diagram, biểu đồ từ React Dashboard.
+3. **Thuyết trình Slide:** 30 phút. Ảnh chụp màn hình React Dashboard + Three.js 3D scene.
+4. **Video Demo Live:** Demo React UI → Three.js VectorSpace → RAG Chat → Accuracy Benchmark.
