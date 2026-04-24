@@ -1,93 +1,218 @@
-# Báo Cáo Seminar Big Data: Benchmarking Qdrant, Weaviate & Milvus
+# RAG Benchmark — Qdrant vs Weaviate vs Milvus
 
-Dự án này là hệ thống triển khai Retrieval-Augmented Generation (RAG) nhằm đánh giá và so sánh hiệu năng của 3 hệ quản trị Vector Database đại diện cho mảng Big Data: **Qdrant (Rust)**, **Weaviate (Go)**, và **Milvus (C++)**. Hệ thống được thiết kế với giao diện chuẩn mực do Thành viên A (Lê Xuân Trí) chịu trách nhiệm kiến trúc.
+Hệ thống Full-Stack so sánh hiệu năng 3 Vector Database: **Qdrant (Rust)**, **Weaviate (Go)**, **Milvus (C++)** qua kiến trúc RAG. Giao diện React + Three.js 3D, backend FastAPI MVC, toàn bộ chạy local bằng Docker.
 
 ## Nhóm Thực Hiện
-- **A. Lê Xuân Trí**: Kiến trúc sư RAG & Phát triển Giao diện Streamlit (UI/UX).
-- **B. Nguyễn Hồ Anh Tuấn**: Chuyên viên Quản trị Weaviate.
-- **C. Trần Hữu Kim Thành**: Chuyên viên Quản trị Milvus.
-- **D. Trần Lê Trung Trực**: Chuyên viên Quản trị Qdrant.
 
-## Tính Năng Kỹ Thuật
-- **Giao Diện Trực Quan**: Streamlit dashboard nền tối, 6 tabs phân tích (Latency / Accuracy / Recall-vs-Latency / Hybrid / Filtering / DX Score).
-- **Chế Độ Giả Lập (MOCK_MODE)**: Chạy hoàn toàn offline — embedder & LLM có fallback deterministic, không cần Ollama để dev & demo giao diện.
-- **Fairness Protocol**: Tất cả 3 DB dùng chung `INDEX_PARAMS` (HNSW M=16, ef_construction=128, ef_search=64, COSINE) từ `src/config.py` → so sánh apples-to-apples.
-- **Ground-Truth Accuracy**: Corpus synthetic 10K chunks (seed cố định), mỗi chunk mang nhãn `[CID:…]` → Recall@1/5/10 + MRR đo bằng exact ID match, không cần LLM-as-judge.
-- **Recall vs Latency Pareto Curve**: Sweep `top_k ∈ {1,2,5,10,20,50}` theo kiểu ann-benchmarks.com — biểu đồ chính cho slide thuyết trình.
-- **DX Score v2**: SLOC + cyclomatic complexity + public methods + third-party imports → score tổng hợp (thấp = dễ dùng).
-- **Telemetry Append-Mode**: `@time_profiler` ghi log O(1) per call vào `metrics.csv`, chịu được stress test dài.
+| Mã | Họ và tên | Vai trò |
+| :- | :- | :- |
+| A | Lê Xuân Trí | RAG Architect & Full-Stack Lead (React + FastAPI) |
+| B | Nguyễn Hồ Anh Tuấn | Weaviate Specialist |
+| C | Trần Hữu Kim Thành | Milvus Specialist |
+| D | Trần Lê Trung Trực | Qdrant Specialist |
 
 ---
 
-## Hướng Dẫn Cài Đặt và Triển Khai
+## Kiến Trúc Hệ Thống
 
-### Yêu Cầu Hệ Thống Khuyên Dùng
-- **Python 3.11+**
-- **Docker** và **Docker Compose V2**
+```
+Browser (React + Three.js :5173)
+    ↕ HTTP /api/v1/*
+FastAPI Backend (:8000)   ← MVC: controllers / services / routers
+    ↕ Python SDK
+Qdrant (:6333) | Weaviate (:8080) | Milvus (:19530)
+    + Ollama (:11434) — nomic-embed-text + qwen2.5:3b
+```
 
-### Bước 1: Khởi Động Hạ Tầng Cơ Sở Dữ Liệu
-Toàn bộ hệ thống 3 Cơ sở dữ liệu và công cụ Ollama (nếu cần) được cấu hình trong một tệp compose thống nhất. Yêu cầu chạy dòng lệnh sau tại thư mục gốc:
+**Cấu trúc thư mục:**
+```
+.
+├── frontend/          React 18 + Three.js + Vite
+├── backend/           FastAPI MVC
+├── src/core/          Shared Python: DB clients, benchmark, embedder
+├── src/config.py      Constants, INDEX_PARAMS, MOCK_MODE
+└── docker-compose.yml Toàn bộ services
+```
+
+---
+
+## Yêu Cầu Hệ Thống
+
+| Thành phần | Phiên bản tối thiểu |
+| :- | :- |
+| Docker + Docker Compose V2 | Docker 24+ |
+| Python | 3.11 |
+| Node.js | 20 LTS |
+| RAM khuyên dùng | 8 GB (chạy 3 DB + Ollama cùng lúc) |
+
+---
+
+## Cách Chạy
+
+### Option 1 — Docker (khuyên dùng, 1 lệnh)
+
 ```bash
 docker compose up -d
 ```
-*(Ghi chú: Quá trình ánh xạ và tải ảnh 3 Container Database có thể mất thời gian. Các cấu hình phần cứng đã được thiết lập giới hạn trong tệp cấu hình yaml để tối ưu tài nguyên của máy chủ host).*
 
-### Bước 2: Thiết Lập Môi Trường Ứng Dụng
-Kích hoạt môi trường lập trình python ảo để tránh xung đột cấu hình hệ thống:
+Sau khi tất cả container healthy:
+
+| Service | URL |
+| :- | :- |
+| React Dashboard | http://localhost:5173 |
+| FastAPI Docs (Swagger) | http://localhost:8000/docs |
+| Qdrant UI | http://localhost:6333/dashboard |
+| Weaviate | http://localhost:8080 |
+| Milvus | localhost:19530 |
+
+> **Lần đầu chạy:** Container `ollama-init` sẽ tự pull `nomic-embed-text` và `qwen2.5:3b` — mất vài phút tuỳ tốc độ mạng.
+
+Kiểm tra tất cả services đang chạy:
+```bash
+docker compose ps
+```
+
+Xem log backend:
+```bash
+docker compose logs -f backend
+```
+
+---
+
+### Option 2 — Development Mode (hot reload)
+
+**Bước 1: Khởi động các DB và Ollama**
+```bash
+docker compose up -d qdrant weaviate milvus-standalone etcd minio ollama ollama-init
+```
+
+**Bước 2: Backend (Terminal 1)**
 ```bash
 python -m venv venv
-# Đối với hệ điều hành Windows:
-venv\Scripts\activate
-# Đối với hệ điều hành Linux/Mac:
-source venv/bin/activate
+source venv/bin/activate        # Windows: venv\Scripts\activate
 
-pip install -r requirements.txt
+pip install -r requirements.txt -r backend/requirements.txt
+
+cd backend
+uvicorn app.main:app --reload --port 8000
+# → API chạy tại http://localhost:8000
+# → Swagger UI tại http://localhost:8000/docs
 ```
 
-### Bước 3: Tuỳ Chỉnh Cấu Hình Giả Lập (Tuỳ Chọn)
-Hệ thống được phát triển với tính năng **MOCK_MODE**. Chế độ này giả lập quá trình Vector hóa và tạo kết xuất văn bản của mô hình ngôn ngữ lớn, rất phù hợp khi kiểm tra hệ thống ngoại tuyến (offline).
+**Bước 3: Frontend (Terminal 2)**
+```bash
+cd frontend
+npm install
+npm run dev
+# → Dashboard tại http://localhost:5173
+```
 
-Thay đổi thiết lập tại file `src/config.py`:
+---
+
+## Cấu Hình
+
+### MOCK_MODE (chạy offline, không cần Ollama)
+
+Chỉnh `src/config.py`:
 ```python
-MOCK_MODE = True # Trạng thái False sẽ cấu hình hệ thống kết nối với Ollama để lấy dữ liệu tính toán thực tế.
+MOCK_MODE = True   # Dùng embedding giả + LLM response giả
 ```
 
-### Bước 4: Thực Thi Hệ Thống RAG
-Tại thư mục chứa dự án, thực thi lệnh sau:
+Hoặc qua biến môi trường:
 ```bash
-python -m streamlit run src/app/main.py
+MOCK_MODE=true uvicorn app.main:app --reload --port 8000
 ```
-Trình duyệt sẽ tự động điều hướng tới địa chỉ mạng cục bộ.
+
+### Tuỳ chỉnh quy mô Benchmark
+
+Đặt trong `.env` hoặc shell trước khi chạy:
+```bash
+BENCH_CORPUS_SIZE=10000   # Số chunk synthetic (default 10K)
+BENCH_NUM_QUERIES=200     # Số golden query (default 200)
+BENCH_SEED=42             # Seed cố định — đảm bảo reproducibility
+```
 
 ---
 
-## Quy Trình Đánh Giá Hệ Thống (Benchmarking)
+## Sử Dụng Dashboard
 
-### 1. Demo luồng RAG (cho Video Demo)
-1. Vào Sidebar → chọn Database (Qdrant / Weaviate / Milvus).
-2. Upload 1 tệp PDF học thuật trong phần *Data Ingestion Pipeline* → bấm **Process & Inject**.
-3. Gõ câu hỏi vào ô chat chính → xem câu trả lời có trích context đúng không.
+### Luồng Demo RAG (Video Demo)
 
-### 2. Benchmark Học Thuật (cho Slide & Báo Cáo)
+1. Vào trang **RAG Chat** (`/rag-chat`).
+2. Chọn Database trong sidebar trái (Qdrant / Weaviate / Milvus).
+3. Kéo thả tệp PDF vào UploadPanel → bấm **Ingest**.
+4. Gõ câu hỏi vào ô chat → xem câu trả lời + latency (ms).
 
-| Tab | Mục đích | Cách chạy |
-| :--- | :--- | :--- |
-| **⚡ Latency** | p50/p95 ms của insert/search | Tự động ghi khi có thao tác, hoặc bấm *Run Stress Test* ở Sidebar |
-| **🎯 Accuracy** | Recall@1/5/10 + MRR trên synthetic corpus 10K | Tab Accuracy → *Run Accuracy Benchmark* |
-| **📈 Recall vs Latency** | Pareto curve sweep `top_k` | Tab Recall vs Latency → *Run Tradeoff Sweep* |
-| **👨‍💻 DX Score** | SLOC + cyclomatic + imports | Tab DX Score → *Run DX Analyzer* (tĩnh, không cần DB chạy) |
-| **System Resources** | CPU / RAM realtime từng container | Expander *System Resources* → *Refresh Resource Stats* |
+### Các Trang Benchmark
 
-### 3. Cấu hình Benchmark
-Các biến môi trường điều chỉnh quy mô (đặt trong `.env` hoặc shell):
-```bash
-BENCH_CORPUS_SIZE=10000   # số chunk synthetic (default 10K)
-BENCH_NUM_QUERIES=200     # số golden query (default 200)
-BENCH_SEED=42             # seed cố định cho reproducibility
-```
-Fairness: cả 3 DB phải đọc `INDEX_PARAMS` từ `src/config.py` trong `connect()`.
-Không được hardcode HNSW params — PR sẽ bị reject bởi reviewer.
+| Trang | Route | Mục đích | Cách chạy |
+| :- | :- | :- | :- |
+| Overview | `/dashboard` | 3D VectorSpace + DB status + latency cards | Tự động |
+| Latency | `/latency` | p95 latency insert/search + RAM/CPU container | Tự động sau khi có thao tác |
+| Accuracy | `/accuracy` | Recall@1/5/10 + MRR leaderboard | Bấm **Run Accuracy Benchmark** |
+| Recall vs Latency | `/tradeoff` | Pareto curve sweep `top_k ∈ {1,2,5,10,20,50}` | Bấm **Run Tradeoff Sweep** |
+| Hybrid Search | `/hybrid` | So sánh Dense vs Hybrid cho B/C/D | Sau khi implement `search_hybrid()` |
+| DX Score | `/dx-score` | SLOC + cyclomatic + imports radar chart | Bấm **Run DX Analyzer** |
 
 ---
 
-*Dự án thuộc học phần Big Data. Cấu trúc chuẩn hoá cho yêu cầu Seminar nghiên cứu khoa học.*
+## Fairness Protocol (Quan Trọng)
+
+Tất cả 3 DB phải đọc HNSW params từ `src/config.py` — **không hardcode**:
+
+```python
+from src.config import INDEX_PARAMS
+# INDEX_PARAMS = {"M": 16, "ef_construction": 128, "ef_search": 64, "metric": "COSINE"}
+```
+
+PR nào còn giá trị literal `M=16` hoặc `ef=64` sẽ bị reject bởi reviewer A.
+
+---
+
+## API Reference
+
+Backend chạy tại `http://localhost:8000`. Swagger UI đầy đủ tại `/docs`.
+
+| Endpoint | Method | Mô tả |
+| :- | :- | :- |
+| `/api/v1/health` | GET | Trạng thái kết nối 3 DB |
+| `/api/v1/metrics` | GET | Dữ liệu `metrics.csv` dạng JSON |
+| `/api/v1/ingest` | POST | Upload PDF → chunk → embed → insert |
+| `/api/v1/chat` | POST | RAG query → answer + latency |
+| `/api/v1/benchmark/accuracy` | POST | Recall@K + MRR evaluation |
+| `/api/v1/benchmark/tradeoff` | POST | Recall vs Latency sweep |
+| `/api/v1/benchmark/stress` | POST | Stress test tất cả DB |
+| `/api/v1/resources` | GET | Docker container CPU/RAM |
+| `/api/v1/dx` | GET | DX complexity score |
+
+---
+
+## Xử Lý Sự Cố
+
+**Backend không kết nối được DB:**
+```bash
+# Kiểm tra container đang chạy
+docker compose ps
+# Xem log của DB cụ thể
+docker compose logs qdrant
+```
+
+**Ollama chưa pull model xong:**
+```bash
+docker compose logs ollama-init
+# Hoặc pull thủ công
+docker compose exec ollama ollama pull nomic-embed-text
+docker compose exec ollama ollama pull qwen2.5:3b
+```
+
+**RAM không đủ (Milvus + Weaviate + Qdrant cùng lúc):**
+- Tắt DB không dùng: `docker compose stop milvus-standalone etcd minio`
+- Giảm `mem_limit` trong `docker-compose.yml`
+
+**Frontend lỗi CORS:**
+- Đảm bảo backend đang chạy ở port 8000
+- Vite proxy `/api → http://localhost:8000` trong `frontend/vite.config.js`
+
+---
+
+*Dự án thuộc học phần Big Data — Seminar nghiên cứu khoa học.*

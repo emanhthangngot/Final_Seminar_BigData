@@ -115,6 +115,48 @@ services:
         echo 'Model pull requests completed.';
       "
 
+  # FastAPI backend
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: seminar_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./backend:/app/backend
+      - ./volumes:/app/volumes
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - QDRANT_HOST=qdrant
+      - WEAVIATE_HOST=weaviate
+      - MILVUS_HOST=milvus-standalone
+    networks:
+      - seminar_net
+    depends_on:
+      - qdrant
+      - weaviate
+      - milvus-standalone
+      - ollama
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # React + Three.js frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: seminar_frontend
+    ports:
+      - "5173:80"
+    networks:
+      - seminar_net
+    depends_on:
+      - backend
+
 networks:
   seminar_net:
     driver: bridge
