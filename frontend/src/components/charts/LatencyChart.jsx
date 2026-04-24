@@ -1,6 +1,8 @@
 import {
-  BarChart, Bar, BoxPlot, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer, ReferenceLine
+  BarChart, Bar,
+  LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+  Legend, ResponsiveContainer,
 } from 'recharts'
 
 const DB_FILL = { Qdrant: '#EF4444', Weaviate: '#3B82F6', Milvus: '#10B981' }
@@ -11,7 +13,7 @@ const CustomTooltip = ({ active, payload, label }) => {
     <div className="card px-3 py-2 text-xs space-y-1">
       <p className="font-semibold text-gray-200">{label}</p>
       {payload.map((p) => (
-        <p key={p.name} style={{ color: p.fill }}>
+        <p key={p.name} style={{ color: p.fill ?? p.stroke }}>
           {p.name}: <span className="font-mono font-semibold">{p.value?.toFixed(2)} ms</span>
         </p>
       ))}
@@ -40,8 +42,6 @@ export function LatencyBarChart({ data }) {
 
 export function LatencyTimelineChart({ data }) {
   if (!data?.length) return <EmptyChart label="No timeline data yet" />
-
-  const { LineChart, Line } = require('recharts')
 
   return (
     <ResponsiveContainer width="100%" height={240}>

@@ -25,7 +25,7 @@ export default function Dashboard() {
     <motion.div variants={{ show: { transition: { staggerChildren: 0.06 } } }} initial="hidden" animate="show" className="space-y-6">
 
       {/* Hero 3D Scene */}
-      <motion.div variants={FADE_UP} className="card overflow-hidden" style={{ height: 320 }}>
+      <motion.div variants={FADE_UP} className="card overflow-hidden relative" style={{ height: 320 }}>
         <Suspense fallback={<div className="h-full skeleton" />}>
           <VectorSpaceScene />
         </Suspense>
