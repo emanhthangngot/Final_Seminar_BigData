@@ -42,11 +42,13 @@ Nghiên cứu kiến trúc và điểm mạnh độc tôn của từng tool:
 ### Tên dự án: Hệ thống RAG (Q&A Tài liệu môn Big Data) và Benchmark bộ 3 Qdrant - Weaviate - Milvus.
 **Mô tả:** Hệ thống cho phép người dùng upload tài liệu (PDF, TXT) kiến thức Big Data. Giao diện (Streamlit UI) cho người dùng chat với tài liệu. Hệ thống sẽ có nút chọn xem người dùng muốn thực hiện query qua DB nào (Qdrant, Weaviate hay Milvus). Từ đó so sánh tốc độ cũng như code complexity của cả 3.
 
-**Tech stack:**
-- Khung sườn RAG: `LangChain` hoặc `LlamaIndex` (cả 3 vector DB này đều hỗ trợ 2 FW này).
-- Embedding & LLM: OpenAI API (hoặc dùng local chạy Ollama quá rẻ).
-- Hạ tầng: Chạy bằng `Docker Compose` cả 3 Database.
-- Giao diện: `Streamlit`.
+**Tech stack (Updated):**
+- Khung sườn RAG: `LangChain` (embedding, chunking, retrieval).
+- Embedding & LLM: Ollama local (`nomic-embed-text` + `qwen2.5:3b`) — miễn phí, không cần API key.
+- Hạ tầng: `Docker Compose` chạy toàn bộ: 3 DB + Ollama + FastAPI backend + React frontend.
+- **Frontend: React 18 + Three.js** — Dashboard tương tác, 3D Vector Space visualization, Recharts cho biểu đồ benchmark.
+- **Backend: FastAPI (MVC)** — REST API `/api/v1/*`, Pydantic schemas, chia rõ controllers/services/routers.
+- ~~Streamlit~~ → **Đã thay thế bởi React + FastAPI** để tăng tính chuyên nghiệp và khả năng 3D visualization.
 
 **Các chỉ số (Metrics) dùng để So sánh trực tiếp trên đồ thị trong Slide:**
 1. **Ingestion Time (Thời gian nạp Dữ liệu):** Push 1 cọc file PDF ~500 trang vào cả 3, xem DB nào load nhanh nhất?
