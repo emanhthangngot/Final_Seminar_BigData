@@ -80,7 +80,8 @@ class QdrantWrapper(BaseVectorDB):
                 )
             )
 
-        self.client.upload_points(collection_name=self.collection_name, points=points)
+        self.client.upload_points(collection_name=self.collection_name, points=points, wait=True)
+        logger.info(f"[Qdrant] Inserted {len(points)} points in a single payload.")
         return True
 
     @time_profiler
@@ -104,36 +105,41 @@ class QdrantWrapper(BaseVectorDB):
         filters: Dict[str, Any] = None,
         top_k: int = 5,
     ) -> List[str]:
-        """
-        [TODO — Person D / Qdrant Specialist]
+        query_filter = None
+        if filters:
+            must_conditions = []
+            for key, value in filters.items():
+                if isinstance(value, dict):
+                    range_kwargs = {}
+                    for op in ("gte", "lte", "gt", "lt"):
+                        if op in value:
+                            range_kwargs[op] = value[op]
+                    must_conditions.append(
+                        models.FieldCondition(key=key, range=models.Range(**range_kwargs))
+                    )
+                elif isinstance(value, bool):
+                    must_conditions.append(
+                        models.FieldCondition(key=key, match=models.MatchValue(value=value))
+                    )
+                else:
+                    must_conditions.append(
+                        models.FieldCondition(key=key, match=models.MatchValue(value=value))
+                    )
+            query_filter = models.Filter(must=must_conditions)
 
-        Goals:
-          1. Build a `models.Filter` from the `filters` dict (support eq / range / bool).
-          2. Call `self.client.query_points(...)` with `query_filter=...`.
-          3. (Stretch) Integrate BM25 sparse vectors via `prefetch` for true hybrid.
-
-        Starter hint:
-            flt = models.Filter(must=[models.FieldCondition(
-                key=k, match=models.MatchValue(value=v)) for k, v in (filters or {}).items()])
-            res = self.client.query_points(
-                collection_name=self.collection_name,
-                query=query_embedding,
-                query_filter=flt,
-                limit=top_k,
-            )
-            return [p.payload["document_text"] for p in res.points]
-        """
-        raise NotImplementedError(
-            "[Qdrant] Hybrid Search & Filters not implemented yet — Person D."
+        results = self.client.query_points(
+            collection_name=self.collection_name,
+            query=query_embedding,
+            query_filter=query_filter,
+            limit=top_k,
+            search_params=models.SearchParams(hnsw_ef=INDEX_PARAMS["ef_search"]),
         )
+        return [p.payload.get("document_text", "") for p in results.points]
 
     def reset_collection(self) -> None:
-        """
-        [TODO — Person D]
-        Drop and recreate `self.collection_name` for a clean benchmark.
-
-        Starter hint:
+        try:
             self.client.delete_collection(self.collection_name)
-            self.connect()
-        """
-        raise NotImplementedError("[Qdrant] reset_collection not implemented yet — Person D.")
+            logger.info(f"[Qdrant] Collection '{self.collection_name}' dropped.")
+        except Exception as exc:
+            logger.warning(f"[Qdrant] Drop failed (may not exist): {exc}")
+        self.connect()
