@@ -26,6 +26,13 @@ class DatabaseService:
                 logger.error(f"Failed to connect {name}: {exc}")
 
     async def close_all(self):
+        for _, engine in self._catalog.items():
+            close_fn = getattr(engine, "close", None)
+            if callable(close_fn):
+                try:
+                    close_fn()
+                except Exception as exc:
+                    logger.warning(f"Close engine warning: {exc}")
         self._catalog.clear()
 
     def get(self, name: str):

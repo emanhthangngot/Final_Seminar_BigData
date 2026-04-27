@@ -9,9 +9,11 @@ complete `search_hybrid` and `reset_collection`, and to tune vectorizer /
 module config for benchmarking.
 """
 
+import atexit
 from typing import List, Dict, Any
 
 import weaviate
+from weaviate.classes.config import Configure, DataType, Property
 
 from src.core.db_clients.base import BaseVectorDB
 from src.config import (
@@ -25,6 +27,11 @@ from src.core.utils.logger import logger
 
 
 COLLECTION_NAME = "RAGDocument"
+SCHEMA_PROPERTIES = [
+    Property(name="content", data_type=DataType.TEXT),
+    Property(name="source", data_type=DataType.TEXT),
+    Property(name="chunk_id", data_type=DataType.TEXT),
+]
 
 
 # [TODO — Person B] Pass INDEX_PARAMS["M"] / ef_construction into
@@ -33,18 +40,37 @@ COLLECTION_NAME = "RAGDocument"
 
 
 class WeaviateWrapper(BaseVectorDB):
+    def __init__(self) -> None:
+        self.client = None
+        self.collection_name = COLLECTION_NAME
+        self._atexit_registered = False
+
     def connect(self) -> None:
+        if self.client is not None:
+            self.close()
+
         self.client = weaviate.connect_to_local(
             host=WEAVIATE_HOST,
             port=WEAVIATE_PORT,
             grpc_port=WEAVIATE_GRPC_PORT,
         )
+
+        if not self.client.is_ready():
+            raise ConnectionError(
+                f"[Weaviate] Endpoint {WEAVIATE_HOST}:{WEAVIATE_PORT} is not ready."
+            )
+
         self.collection_name = COLLECTION_NAME
+
+        if not self._atexit_registered:
+            atexit.register(self.close)
+            self._atexit_registered = True
 
         if not self.client.collections.exists(self.collection_name):
             self.client.collections.create(
                 name=self.collection_name,
-                vectorizer_config=None,  # We provide our own vectors
+                properties=SCHEMA_PROPERTIES,
+                vectorizer_config=Configure.Vectorizer.none(),
             )
             logger.info(f"[Weaviate] Collection '{self.collection_name}' created.")
         else:
@@ -108,6 +134,16 @@ class WeaviateWrapper(BaseVectorDB):
         raise NotImplementedError(
             "[Weaviate] Hybrid Search & Filters not implemented yet — Person B."
         )
+
+    def close(self) -> None:
+        if self.client is None:
+            return
+        try:
+            self.client.close()
+        except Exception as exc:
+            logger.warning(f"[Weaviate] Close warning: {exc}")
+        finally:
+            self.client = None
 
     def reset_collection(self) -> None:
         """
