@@ -34,11 +34,6 @@ SCHEMA_PROPERTIES = [
 ]
 
 
-# [TODO — Person B] Pass INDEX_PARAMS["M"] / ef_construction into
-# `vector_index_config=Configure.VectorIndex.hnsw(...)` at collection creation
-# time so Weaviate uses the same HNSW settings as the other two DBs.
-
-
 class WeaviateWrapper(BaseVectorDB):
     def __init__(self) -> None:
         self.client = None
@@ -71,6 +66,11 @@ class WeaviateWrapper(BaseVectorDB):
                 name=self.collection_name,
                 properties=SCHEMA_PROPERTIES,
                 vectorizer_config=Configure.Vectorizer.none(),
+                vector_index_config=Configure.VectorIndex.hnsw(
+                    max_connections=INDEX_PARAMS["M"],
+                    ef_construction=INDEX_PARAMS["ef_construction"],
+                    ef=INDEX_PARAMS["ef_search"],
+                ),
             )
             logger.info(f"[Weaviate] Collection '{self.collection_name}' created.")
         else:
