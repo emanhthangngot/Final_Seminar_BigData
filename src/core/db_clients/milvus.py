@@ -3,13 +3,19 @@ Milvus Vector Database Wrapper.
 
 Owner: Person C — Trần Hữu Kim Thành (Milvus Specialist).
 
-This file is a STARTER TEMPLATE. The basic `connect`, `insert`, `search`
-methods are wired so the RAG app can run end-to-end. Person C is expected to
-complete `search_hybrid` and `reset_collection`, and to tune index params
-(IVF_FLAT / HNSW / IVF_PQ) for benchmarking.
+Implements the BaseVectorDB interface for Milvus Standalone.
+All HNSW parameters are sourced from ``src.config.INDEX_PARAMS`` to satisfy
+the Fairness Protocol — no benchmark-sensitive values are hardcoded.
+
+Capabilities:
+  - connect()        : create/load collection with canonical HNSW index
+  - insert()         : batch insert + flush, profiled via @time_profiler
+  - search()         : ANN search using INDEX_PARAMS for search_params
+  - search_hybrid()  : dense vector search with boolean ``expr`` filter
+  - reset_collection(): drop + recreate for clean benchmark runs
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from pymilvus import (
     connections,
@@ -25,7 +31,7 @@ from src.config import (
     MILVUS_HOST,
     MILVUS_PORT,
     VECTOR_DIM,
-    INDEX_PARAMS,  # <-- canonical HNSW params shared with Qdrant & Weaviate
+    INDEX_PARAMS,  # <- canonical HNSW params shared with Qdrant & Weaviate
 )
 from src.core.benchmark.profiler import time_profiler
 from src.core.utils.logger import logger
@@ -35,39 +41,106 @@ from src.core.utils.helpers import format_milvus_collection_name
 COLLECTION_NAME = format_milvus_collection_name("Seminar_RAG_Collection")
 
 
-# [TODO — Person C] Use INDEX_PARAMS["M"] / ef_construction / ef_search in the
-# HNSW index_params and search_params dicts so Milvus is calibrated identically
-# to Qdrant & Weaviate. Otherwise the benchmark is not apples-to-apples.
-
-
 class MilvusWrapper(BaseVectorDB):
+    """
+    Milvus Standalone wrapper implementing the BaseVectorDB contract.
+
+    All index tuning knobs read from ``INDEX_PARAMS`` (Fairness Protocol).
+    """
+
+    def __init__(self):
+        self.collection: Optional[Collection] = None
+        self.collection_name: str = COLLECTION_NAME
+
+    # ------------------------------------------------------------------
+    # Connection & Collection Management
+    # ------------------------------------------------------------------
     def connect(self) -> None:
+        """
+        Connect to Milvus and ensure the benchmark collection exists with
+        the canonical HNSW index configuration.
+
+        FAIRNESS PROTOCOL: M, efConstruction, metric_type are all sourced
+        from ``INDEX_PARAMS`` — never hardcoded.
+        """
         connections.connect("default", host=MILVUS_HOST, port=MILVUS_PORT)
-        self.collection_name = COLLECTION_NAME
 
         if not utility.has_collection(self.collection_name):
             fields = [
-                FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
-                FieldSchema(name="content", dtype=DataType.VARCHAR, max_length=65535),
-                FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=VECTOR_DIM),
+                FieldSchema(
+                    name="id",
+                    dtype=DataType.INT64,
+                    is_primary=True,
+                    auto_id=True,
+                ),
+                FieldSchema(
+                    name="content",
+                    dtype=DataType.VARCHAR,
+                    max_length=65535,
+                ),
+                FieldSchema(
+                    name="vector",
+                    dtype=DataType.FLOAT_VECTOR,
+                    dim=VECTOR_DIM,
+                ),
+                # --- Metadata fields for search_hybrid() expr filters ---
+                FieldSchema(
+                    name="source",
+                    dtype=DataType.VARCHAR,
+                    max_length=1024,
+                    default_value="",
+                ),
+                FieldSchema(
+                    name="category",
+                    dtype=DataType.VARCHAR,
+                    max_length=256,
+                    default_value="",
+                ),
+                FieldSchema(
+                    name="page",
+                    dtype=DataType.INT64,
+                    default_value=0,
+                ),
             ]
-            schema = CollectionSchema(fields, description="Seminar RAG benchmark collection")
-            self.collection = Collection(self.collection_name, schema)
-            self.collection.create_index(
-                "vector",
-                {
-                    "metric_type": "COSINE",
-                    "index_type": "HNSW",
-                    "params": {"M": 16, "efConstruction": 64},
-                },
+            schema = CollectionSchema(
+                fields,
+                description="Seminar RAG benchmark collection (Milvus)",
             )
-            logger.info(f"[Milvus] Collection '{self.collection_name}' and HNSW index created.")
+            self.collection = Collection(self.collection_name, schema)
+
+            # ----- HNSW Index — params from canonical INDEX_PARAMS -----
+            index_params = {
+                "metric_type": INDEX_PARAMS["metric"],
+                "index_type": INDEX_PARAMS["index_type"],
+                "params": {
+                    "M": INDEX_PARAMS["M"],
+                    "efConstruction": INDEX_PARAMS["ef_construction"],
+                },
+            }
+            self.collection.create_index("vector", index_params)
+
+            logger.info(
+                "[Milvus] Collection '%s' created with HNSW index "
+                "(M=%d, efConstruction=%d, metric=%s).",
+                self.collection_name,
+                INDEX_PARAMS["M"],
+                INDEX_PARAMS["ef_construction"],
+                INDEX_PARAMS["metric"],
+            )
         else:
             self.collection = Collection(self.collection_name)
-            logger.info(f"[Milvus] Collection '{self.collection_name}' already exists.")
+            logger.info(
+                "[Milvus] Collection '%s' already exists — reusing.",
+                self.collection_name,
+            )
 
+        # Load collection into memory so search() is available immediately
         self.collection.load()
+        logger.info("[Milvus] Collection loaded into memory — ready for queries.")
 
+    # ------------------------------------------------------------------
+    # Insert
+    # ------------------------------------------------------------------
     @time_profiler
     def insert(
         self,
@@ -75,13 +148,66 @@ class MilvusWrapper(BaseVectorDB):
         embeddings: List[List[float]],
         metadata: List[Dict[str, Any]] = None,
     ) -> bool:
-        self.collection.insert([chunks, embeddings])
+        """
+        Batch insert chunks + embeddings into Milvus and flush to persist.
+
+        Parameters
+        ----------
+        chunks : list[str]
+            Text content of each chunk.
+        embeddings : list[list[float]]
+            Corresponding vector embeddings (dim must equal VECTOR_DIM).
+        metadata : list[dict], optional
+            Per-chunk metadata. Recognised keys: ``source``, ``category``, ``page``.
+        """
+        if not chunks:
+            logger.warning("[Milvus] insert() called with empty chunks list.")
+            return False
+
+        # Validate dimension
+        for i, emb in enumerate(embeddings):
+            assert len(emb) == VECTOR_DIM, (
+                f"[Milvus] Embedding #{i} has dim={len(emb)}, expected {VECTOR_DIM}"
+            )
+
+        # Build per-row metadata lists
+        sources = []
+        categories = []
+        pages = []
+        for i in range(len(chunks)):
+            meta = (metadata[i] if metadata and i < len(metadata) else {}) or {}
+            sources.append(str(meta.get("source", "")))
+            categories.append(str(meta.get("category", "")))
+            pages.append(int(meta.get("page", 0)))
+
+        insert_data = [
+            chunks,       # content
+            embeddings,   # vector
+            sources,      # source
+            categories,   # category
+            pages,        # page
+        ]
+
+        self.collection.insert(insert_data)
         self.collection.flush()
+
+        logger.info("[Milvus] Inserted %d chunks and flushed.", len(chunks))
         return True
 
+    # ------------------------------------------------------------------
+    # Dense Vector Search (ANN)
+    # ------------------------------------------------------------------
     @time_profiler
     def search(self, query_embedding: List[float], top_k: int = 5) -> List[str]:
-        search_params = {"metric_type": "COSINE", "params": {"ef": 64}}
+        """
+        Standard ANN search using the canonical search params from INDEX_PARAMS.
+        """
+        search_params = {
+            "metric_type": INDEX_PARAMS["metric"],
+            "params": {
+                "ef": INDEX_PARAMS["ef_search"],
+            },
+        }
         results = self.collection.search(
             data=[query_embedding],
             anns_field="vector",
@@ -91,6 +217,9 @@ class MilvusWrapper(BaseVectorDB):
         )
         return [hit.entity.get("content") for hit in results[0]]
 
+    # ------------------------------------------------------------------
+    # Hybrid Search (Dense + Boolean Expr Filter)
+    # ------------------------------------------------------------------
     @time_profiler
     def search_hybrid(
         self,
@@ -100,41 +229,77 @@ class MilvusWrapper(BaseVectorDB):
         top_k: int = 5,
     ) -> List[str]:
         """
-        [TODO — Person C / Milvus Specialist]
+        Dense vector search combined with Milvus boolean ``expr`` filtering.
 
-        Goals:
-          1. Translate `filters` dict into a Milvus boolean expression string
-             (e.g. `category == "tech" and year > 2023`).
-          2. Pass it as the `expr` argument to `self.collection.search(...)`.
-          3. (Stretch) Use `AnnSearchRequest` + `RRFRanker` for true hybrid search
-             combining dense and sparse vectors.
+        Translates the ``filters`` dict into a Milvus boolean expression, e.g.
+        ``{"category": "tech", "page": 5}`` becomes
+        ``category == "tech" and page == 5``.
 
-        Starter hint:
-            expr_parts = []
-            for k, v in (filters or {}).items():
-                expr_parts.append(f'{k} == "{v}"' if isinstance(v, str) else f'{k} == {v}')
-            expr = " and ".join(expr_parts) if expr_parts else None
-            results = self.collection.search(
-                data=[query_embedding],
-                anns_field="vector",
-                param={"metric_type": "COSINE", "params": {"ef": 64}},
-                limit=top_k,
-                expr=expr,
-                output_fields=["content"],
-            )
-            return [hit.entity.get("content") for hit in results[0]]
+        Parameters
+        ----------
+        query_text : str
+            Original query string (unused in pure expr mode, reserved for
+            future sparse/BM25 integration).
+        query_embedding : list[float]
+            Dense query vector.
+        filters : dict, optional
+            Key-value pairs to AND-combine into a boolean expression.
+            String values use ``==``, numeric values use ``==``.
+        top_k : int
+            Number of results to return.
         """
-        raise NotImplementedError(
-            "[Milvus] Hybrid Search & Filters not implemented yet — Person C."
-        )
+        # --- Build boolean expression from filters dict ---
+        expr = None
+        if filters:
+            expr_parts = []
+            for key, value in filters.items():
+                if isinstance(value, str):
+                    # Escape single quotes in string values
+                    safe_value = value.replace('"', '\\"')
+                    expr_parts.append(f'{key} == "{safe_value}"')
+                elif isinstance(value, bool):
+                    expr_parts.append(f"{key} == {str(value).lower()}")
+                elif isinstance(value, (int, float)):
+                    expr_parts.append(f"{key} == {value}")
+                else:
+                    logger.warning(
+                        "[Milvus] Unsupported filter type for key '%s': %s",
+                        key, type(value).__name__,
+                    )
+            expr = " and ".join(expr_parts) if expr_parts else None
 
+        if expr:
+            logger.info("[Milvus] Hybrid search with expr: %s", expr)
+
+        search_params = {
+            "metric_type": INDEX_PARAMS["metric"],
+            "params": {
+                "ef": INDEX_PARAMS["ef_search"],
+            },
+        }
+
+        results = self.collection.search(
+            data=[query_embedding],
+            anns_field="vector",
+            param=search_params,
+            limit=top_k,
+            expr=expr,
+            output_fields=["content"],
+        )
+        return [hit.entity.get("content") for hit in results[0]]
+
+    # ------------------------------------------------------------------
+    # Reset (for clean benchmark re-runs)
+    # ------------------------------------------------------------------
     def reset_collection(self) -> None:
         """
-        [TODO — Person C]
-        Drop and recreate the Milvus collection.
-
-        Starter hint:
-            utility.drop_collection(self.collection_name)
-            self.connect()
+        Drop the existing collection and recreate it with the canonical
+        HNSW index — provides a clean slate for benchmark iterations.
         """
-        raise NotImplementedError("[Milvus] reset_collection not implemented yet — Person C.")
+        if utility.has_collection(self.collection_name):
+            utility.drop_collection(self.collection_name)
+            logger.info("[Milvus] Collection '%s' dropped.", self.collection_name)
+
+        # Recreate collection + index + load
+        self.connect()
+        logger.info("[Milvus] Collection '%s' recreated (clean state).", self.collection_name)
