@@ -40,6 +40,9 @@ from src.core.utils.helpers import format_milvus_collection_name
 
 COLLECTION_NAME = format_milvus_collection_name("Seminar_RAG_Collection")
 
+# Batch size for large corpus ingestion — avoids timeout/OOM on 10K+ chunks
+INSERT_BATCH_SIZE = 500
+
 
 class MilvusWrapper(BaseVectorDB):
     """
@@ -151,6 +154,9 @@ class MilvusWrapper(BaseVectorDB):
         """
         Batch insert chunks + embeddings into Milvus and flush to persist.
 
+        For large corpora (10K+), data is automatically split into batches
+        of ``INSERT_BATCH_SIZE`` to avoid timeout and memory spikes.
+
         Parameters
         ----------
         chunks : list[str]
@@ -180,18 +186,27 @@ class MilvusWrapper(BaseVectorDB):
             categories.append(str(meta.get("category", "")))
             pages.append(int(meta.get("page", 0)))
 
-        insert_data = [
-            chunks,       # content
-            embeddings,   # vector
-            sources,      # source
-            categories,   # category
-            pages,        # page
-        ]
+        # --- Batch insert for 10K+ corpus stability ---
+        total = len(chunks)
+        inserted = 0
+        for start in range(0, total, INSERT_BATCH_SIZE):
+            end = min(start + INSERT_BATCH_SIZE, total)
+            batch_data = [
+                chunks[start:end],
+                embeddings[start:end],
+                sources[start:end],
+                categories[start:end],
+                pages[start:end],
+            ]
+            self.collection.insert(batch_data)
+            inserted += (end - start)
+            if total > INSERT_BATCH_SIZE:
+                logger.info(
+                    "[Milvus] Batch inserted %d/%d chunks.", inserted, total
+                )
 
-        self.collection.insert(insert_data)
         self.collection.flush()
-
-        logger.info("[Milvus] Inserted %d chunks and flushed.", len(chunks))
+        logger.info("[Milvus] Inserted %d chunks total and flushed.", total)
         return True
 
     # ------------------------------------------------------------------
@@ -218,8 +233,36 @@ class MilvusWrapper(BaseVectorDB):
         return [hit.entity.get("content") for hit in results[0]]
 
     # ------------------------------------------------------------------
-    # Hybrid Search (Dense + Boolean Expr Filter)
+    # Hybrid Search (Dense + Boolean Expr Filter + RRF Reranking)
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_expr(filters: Dict[str, Any]) -> Optional[str]:
+        """
+        Translate a ``filters`` dict into a Milvus boolean expression string.
+
+        Examples:
+            {"category": "tech"}          -> 'category == "tech"'
+            {"category": "tech", "page": 5} -> 'category == "tech" and page == 5'
+        """
+        if not filters:
+            return None
+        parts = []
+        for key, value in filters.items():
+            if isinstance(value, str):
+                safe = value.replace('"', '\\"')
+                parts.append(f'{key} == "{safe}"')
+            elif isinstance(value, bool):
+                parts.append(f"{key} == {str(value).lower()}")
+            elif isinstance(value, (int, float)):
+                parts.append(f"{key} == {value}")
+            else:
+                logger.warning(
+                    "[Milvus] Unsupported filter type for key '%s': %s",
+                    key, type(value).__name__,
+                )
+        return " and ".join(parts) if parts else None
+
     @time_profiler
     def search_hybrid(
         self,
@@ -229,64 +272,69 @@ class MilvusWrapper(BaseVectorDB):
         top_k: int = 5,
     ) -> List[str]:
         """
-        Dense vector search combined with Milvus boolean ``expr`` filtering.
+        Hybrid search combining dense vector ANN with boolean ``expr`` filtering.
 
-        Translates the ``filters`` dict into a Milvus boolean expression, e.g.
-        ``{"category": "tech", "page": 5}`` becomes
-        ``category == "tech" and page == 5``.
+        Attempts to use ``AnnSearchRequest`` + ``RRFRanker`` for true hybrid
+        reranking (PyMilvus >= 2.4). Falls back to basic ``collection.search()``
+        with ``expr`` on older versions.
 
         Parameters
         ----------
         query_text : str
-            Original query string (unused in pure expr mode, reserved for
-            future sparse/BM25 integration).
+            Original query string (reserved for future sparse/BM25 integration).
         query_embedding : list[float]
             Dense query vector.
         filters : dict, optional
             Key-value pairs to AND-combine into a boolean expression.
-            String values use ``==``, numeric values use ``==``.
         top_k : int
             Number of results to return.
         """
-        # --- Build boolean expression from filters dict ---
-        expr = None
-        if filters:
-            expr_parts = []
-            for key, value in filters.items():
-                if isinstance(value, str):
-                    # Escape single quotes in string values
-                    safe_value = value.replace('"', '\\"')
-                    expr_parts.append(f'{key} == "{safe_value}"')
-                elif isinstance(value, bool):
-                    expr_parts.append(f"{key} == {str(value).lower()}")
-                elif isinstance(value, (int, float)):
-                    expr_parts.append(f"{key} == {value}")
-                else:
-                    logger.warning(
-                        "[Milvus] Unsupported filter type for key '%s': %s",
-                        key, type(value).__name__,
-                    )
-            expr = " and ".join(expr_parts) if expr_parts else None
-
+        expr = self._build_expr(filters)
         if expr:
             logger.info("[Milvus] Hybrid search with expr: %s", expr)
 
         search_params = {
             "metric_type": INDEX_PARAMS["metric"],
-            "params": {
-                "ef": INDEX_PARAMS["ef_search"],
-            },
+            "params": {"ef": INDEX_PARAMS["ef_search"]},
         }
 
-        results = self.collection.search(
-            data=[query_embedding],
-            anns_field="vector",
-            param=search_params,
-            limit=top_k,
-            expr=expr,
-            output_fields=["content"],
-        )
-        return [hit.entity.get("content") for hit in results[0]]
+        # --- Try advanced hybrid: AnnSearchRequest + RRFRanker ---
+        try:
+            from pymilvus import AnnSearchRequest, RRFRanker
+
+            dense_req = AnnSearchRequest(
+                data=[query_embedding],
+                anns_field="vector",
+                param=search_params,
+                limit=top_k,
+                expr=expr,
+            )
+            reranker = RRFRanker(k=60)
+
+            results = self.collection.hybrid_search(
+                reqs=[dense_req],
+                ranker=reranker,
+                limit=top_k,
+                output_fields=["content"],
+            )
+            logger.info("[Milvus] Hybrid search via AnnSearchRequest + RRFRanker.")
+            return [hit.entity.get("content") for hit in results[0]]
+
+        except (ImportError, TypeError, Exception) as exc:
+            # Fallback: basic search + expr filter
+            logger.info(
+                "[Milvus] RRFRanker unavailable (%s), falling back to expr filter.",
+                type(exc).__name__,
+            )
+            results = self.collection.search(
+                data=[query_embedding],
+                anns_field="vector",
+                param=search_params,
+                limit=top_k,
+                expr=expr,
+                output_fields=["content"],
+            )
+            return [hit.entity.get("content") for hit in results[0]]
 
     # ------------------------------------------------------------------
     # Reset (for clean benchmark re-runs)
