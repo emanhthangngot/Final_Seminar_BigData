@@ -119,7 +119,7 @@ class WeaviateWrapper(BaseVectorDB):
         )
 
     def _resolve_distance_metric(self) -> VectorDistances:
-        metric = str(INDEX_PARAMS.get("metric", "COSINE")).upper()
+        metric = str(INDEX_PARAMS.get("metric") or "COSINE").upper()
         mapping = {
             "COSINE": VectorDistances.COSINE,
             "DOT": VectorDistances.DOT,
@@ -266,7 +266,9 @@ class WeaviateWrapper(BaseVectorDB):
             conditions = []
             for operator, operand in value.items():
                 normalized_operand = self._normalize_filter_operand(key, operand)
-                if normalized_operand is None or normalized_operand == []:
+                if normalized_operand is None or (
+                    isinstance(normalized_operand, (list, tuple, set)) and not normalized_operand
+                ):
                     continue
                 condition = self._condition_from_operator(prop, operator, normalized_operand)
                 if condition is not None:
@@ -309,11 +311,11 @@ class WeaviateWrapper(BaseVectorDB):
         if key not in NUMERIC_FILTER_KEYS:
             return operand
         if isinstance(operand, (list, tuple, set)):
-            values = [
-                normalized
-                for item in operand
-                if (normalized := self._coerce_int_filter_value(key, item)) is not None
-            ]
+            values = []
+            for item in operand:
+                normalized = self._coerce_int_filter_value(key, item)
+                if normalized is not None:
+                    values.append(normalized)
             return values
         return self._coerce_int_filter_value(key, operand)
 
