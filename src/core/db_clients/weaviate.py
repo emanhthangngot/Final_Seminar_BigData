@@ -19,7 +19,7 @@ import atexit
 from typing import Any, Dict, List, Optional
 
 import weaviate
-from weaviate.classes.config import Configure, DataType, Property
+from weaviate.classes.config import Configure, DataType, Property, VectorDistances
 from weaviate.classes.query import Filter
 
 from src.config import (
@@ -44,6 +44,7 @@ SCHEMA_PROPERTIES = [
 ]
 SCHEMA_PROPERTY_NAMES = {prop.name for prop in SCHEMA_PROPERTIES}
 HYBRID_ALPHA = 0.5
+NUMERIC_FILTER_KEYS = {"page"}
 
 
 class WeaviateWrapper(BaseVectorDB):
@@ -95,11 +96,13 @@ class WeaviateWrapper(BaseVectorDB):
             logger.info("[Weaviate] Collection '%s' exists.", self.collection_name)
 
     def _create_collection(self) -> None:
+        distance_metric = self._resolve_distance_metric()
         self.client.collections.create(
             name=self.collection_name,
             properties=SCHEMA_PROPERTIES,
             vectorizer_config=Configure.Vectorizer.none(),
             vector_index_config=Configure.VectorIndex.hnsw(
+                distance_metric=distance_metric,
                 max_connections=INDEX_PARAMS["M"],
                 ef_construction=INDEX_PARAMS["ef_construction"],
                 ef=INDEX_PARAMS["ef_search"],
@@ -107,12 +110,33 @@ class WeaviateWrapper(BaseVectorDB):
         )
         logger.info(
             "[Weaviate] Collection '%s' created with HNSW "
-            "(M=%d, efConstruction=%d, ef=%d).",
+            "(M=%d, efConstruction=%d, ef=%d, metric=%s).",
             self.collection_name,
             INDEX_PARAMS["M"],
             INDEX_PARAMS["ef_construction"],
             INDEX_PARAMS["ef_search"],
+            distance_metric.value,
         )
+
+    def _resolve_distance_metric(self) -> VectorDistances:
+        metric = str(INDEX_PARAMS.get("metric", "COSINE")).upper()
+        mapping = {
+            "COSINE": VectorDistances.COSINE,
+            "DOT": VectorDistances.DOT,
+            "L2": VectorDistances.L2_SQUARED,
+            "L2_SQUARED": VectorDistances.L2_SQUARED,
+            "EUCLIDEAN": VectorDistances.L2_SQUARED,
+            "MANHATTAN": VectorDistances.MANHATTAN,
+            "HAMMING": VectorDistances.HAMMING,
+        }
+        distance_metric = mapping.get(metric)
+        if distance_metric is None:
+            logger.warning(
+                "[Weaviate] Unsupported distance metric '%s'; defaulting to COSINE.",
+                metric,
+            )
+            return VectorDistances.COSINE
+        return distance_metric
 
     # ------------------------------------------------------------------
     # Insert
@@ -241,16 +265,24 @@ class WeaviateWrapper(BaseVectorDB):
         if isinstance(value, dict):
             conditions = []
             for operator, operand in value.items():
-                condition = self._condition_from_operator(prop, operator, operand)
+                normalized_operand = self._normalize_filter_operand(key, operand)
+                if normalized_operand is None or normalized_operand == []:
+                    continue
+                condition = self._condition_from_operator(prop, operator, normalized_operand)
                 if condition is not None:
                     conditions.append(condition)
             return conditions
 
         if isinstance(value, (list, tuple, set)):
-            values = list(value)
-            return [Filter.any_of([prop.equal(item) for item in values])] if values else []
+            values = self._normalize_filter_operand(key, value)
+            if not values:
+                return []
+            return [Filter.any_of([prop.equal(item) for item in values])]
 
-        return [prop.equal(value)]
+        normalized_value = self._normalize_filter_operand(key, value)
+        if normalized_value is None:
+            return []
+        return [prop.equal(normalized_value)]
 
     def _condition_from_operator(self, prop, operator: str, operand: Any):
         normalized = operator.lower().lstrip("$")
@@ -272,6 +304,31 @@ class WeaviateWrapper(BaseVectorDB):
 
         logger.warning("[Weaviate] Ignoring unsupported filter operator '%s'.", operator)
         return None
+
+    def _normalize_filter_operand(self, key: str, operand: Any):
+        if key not in NUMERIC_FILTER_KEYS:
+            return operand
+        if isinstance(operand, (list, tuple, set)):
+            values = [
+                normalized
+                for item in operand
+                if (normalized := self._coerce_int_filter_value(key, item)) is not None
+            ]
+            return values
+        return self._coerce_int_filter_value(key, operand)
+
+    def _coerce_int_filter_value(self, key: str, value: Any) -> Optional[int]:
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            logger.warning(
+                "[Weaviate] Ignoring non-numeric filter value for '%s': %s",
+                key,
+                value,
+            )
+            return None
 
     def _validate_query_embedding(self, query_embedding: List[float]) -> None:
         if len(query_embedding) != VECTOR_DIM:
