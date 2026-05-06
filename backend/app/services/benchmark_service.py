@@ -1,4 +1,4 @@
-import sys, pathlib
+import sys, pathlib, time
 sys.path.insert(0, str(pathlib.Path(__file__).parents[3]))
 
 import pandas as pd
@@ -33,6 +33,29 @@ class BenchmarkService:
             db_service.all(), self.embedder, ingest=ingest,
         )
         return df.to_dict(orient="records")
+
+    def run_hybrid(self, query: str, filters: dict | None, top_k: int) -> list[dict]:
+        query_embedding = self.embedder.embed_query(query)
+        rows: list[dict] = []
+        for name, db in db_service.all().items():
+            started = time.perf_counter()
+            try:
+                results = db.search_hybrid(query, query_embedding, filters=filters, top_k=top_k)
+                rows.append({
+                    "Engine": name,
+                    "Latency_ms": (time.perf_counter() - started) * 1000,
+                    "ResultCount": len(results),
+                    "Errors": 0,
+                })
+            except Exception as exc:
+                rows.append({
+                    "Engine": name,
+                    "Latency_ms": 0,
+                    "ResultCount": 0,
+                    "Errors": 1,
+                    "Error": str(exc),
+                })
+        return rows
 
     def run_stress(self, rounds: int, chunks_per_round: int) -> dict:
         return run_stress_test(

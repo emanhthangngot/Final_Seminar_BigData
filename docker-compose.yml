@@ -123,6 +123,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      - ./requirements.txt:/app/requirements.txt:ro
       - ./src:/app/src
       - ./backend:/app/backend
       - ./volumes:/app/volumes
@@ -131,6 +132,16 @@ services:
       - QDRANT_HOST=qdrant
       - WEAVIATE_HOST=weaviate
       - MILVUS_HOST=milvus-standalone
+      - VIRTUAL_ENV=/opt/venv
+      - PYTHONPATH=/app:/app/backend
+    command: >
+      sh -c "
+        python -m venv /opt/venv &&
+        . /opt/venv/bin/activate &&
+        python -m pip install --upgrade pip &&
+        pip install --no-cache-dir -r /app/requirements.txt -r /app/backend/requirements.txt &&
+        exec uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
     networks:
       - seminar_net
     depends_on:

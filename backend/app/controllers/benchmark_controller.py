@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from app.models.benchmark import (
-    AccuracyBenchmarkRequest, TradeoffRequest, StressTestRequest
+    AccuracyBenchmarkRequest, HybridBenchmarkRequest, TradeoffRequest, StressTestRequest
 )
 from app.services.benchmark_service import benchmark_service
 
@@ -17,6 +17,13 @@ class BenchmarkController:
     def tradeoff(req: TradeoffRequest) -> list[dict]:
         try:
             return benchmark_service.run_tradeoff(req.ingest)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+
+    @staticmethod
+    def hybrid(req: HybridBenchmarkRequest) -> list[dict]:
+        try:
+            return benchmark_service.run_hybrid(req.query, req.filters, req.top_k)
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
 
