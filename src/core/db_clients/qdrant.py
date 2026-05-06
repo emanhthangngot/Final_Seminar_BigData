@@ -144,24 +144,22 @@ class QdrantWrapper(BaseVectorDB):
                     f"expected {VECTOR_DIM}"
                 )
 
-        # ── Build PointStruct list ──────────────────────────────────
-        points: List[models.PointStruct] = []
-        for i, (chunk, vector) in enumerate(zip(chunks, embeddings)):
-            payload: Dict[str, Any] = {"document_text": chunk}
-            if metadata and i < len(metadata):
-                payload.update(metadata[i])
-            points.append(
-                models.PointStruct(
+        # ── Build PointStruct generator ─────────────────────────────
+        def _point_generator():
+            for i, (chunk, vector) in enumerate(zip(chunks, embeddings)):
+                payload: Dict[str, Any] = {"document_text": chunk}
+                if metadata and i < len(metadata):
+                    payload.update(metadata[i])
+                yield models.PointStruct(
                     id=str(uuid.uuid4()),
                     vector=vector,
                     payload=payload,
                 )
-            )
 
         self.client.upload_points(
-            collection_name=self.collection_name, points=points, wait=True
+            collection_name=self.collection_name, points=_point_generator(), wait=True
         )
-        logger.info("[Qdrant] Inserted %d points in a single payload.", len(points))
+        logger.info("[Qdrant] Uploaded %d points via SDK-managed batching.", len(chunks))
         return True
 
     # ------------------------------------------------------------------
@@ -212,21 +210,37 @@ class QdrantWrapper(BaseVectorDB):
         top_k : int
             Number of results to return.
         """
+        # Reserved for future sparse/BM25-style hybrid retrieval parity.
+        _ = query_text
+
         query_filter = None
         if filters:
             must_conditions = []
+            supported_range_ops = {"gte", "lte", "gt", "lt"}
             for key, value in filters.items():
                 if isinstance(value, dict):
+                    unsupported_ops = set(value.keys()) - supported_range_ops
+                    if unsupported_ops:
+                        message = (
+                            f"[Qdrant] Unsupported structured filter for '{key}': "
+                            f"{sorted(unsupported_ops)}. Only range operators "
+                            f"{sorted(supported_range_ops)} are supported."
+                        )
+                        logger.error(message)
+                        raise ValueError(message)
+
                     range_kwargs = {
                         op: value[op]
-                        for op in ("gte", "lte", "gt", "lt")
+                        for op in supported_range_ops
                         if op in value
                     }
                     if not range_kwargs:
-                        raise ValueError(
-                            f"[Qdrant] Unsupported or empty range filter "
-                            f"for key '{key}': {value}"
+                        message = (
+                            f"[Qdrant] Invalid range filter for '{key}': expected at least one of "
+                            f"{sorted(supported_range_ops)}, got an empty dict."
                         )
+                        logger.error(message)
+                        raise ValueError(message)
                     must_conditions.append(
                         models.FieldCondition(key=key, range=models.Range(**range_kwargs))
                     )

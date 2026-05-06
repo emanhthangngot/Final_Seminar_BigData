@@ -319,6 +319,9 @@ class QdrantPhase1Test:
 
         t0 = time.perf_counter()
 
+        # Ensure isolated state before tests begin
+        self.db.reset_collection()
+
         self.test_connect()
         self.test_fairness_protocol()
         self.test_insert()
