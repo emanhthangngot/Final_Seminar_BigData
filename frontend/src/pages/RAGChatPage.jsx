@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMutation } from '@tanstack/react-query'
-import { Send, Bot, User } from 'lucide-react'
+import { Send, Bot, User, BrainCircuit, PanelRight, Sparkles, Trash2 } from 'lucide-react'
 import DBBadge from '../components/ui/DBBadge'
 import UploadPanel from '../components/ui/UploadPanel'
 import { useBenchmarkStore } from '../store/benchmarkStore'
@@ -30,17 +30,22 @@ export default function RAGChatPage() {
   }
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-8rem)]">
-      {/* Sidebar */}
-      <div className="w-60 flex-shrink-0 space-y-4">
-        <div className="card p-4 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Active Database</p>
+    <div className="grid h-[calc(100vh-7.25rem)] min-h-[640px] gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="space-y-4">
+        <div className="card p-5">
+          <div className="relative z-10 mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Active Database</p>
+              <p className="mt-1 text-xs text-slate-500">retrieval target</p>
+            </div>
+            <PanelRight size={16} className="text-cyan" />
+          </div>
           {DBS.map((db) => (
             <button
               key={db}
               onClick={() => setSelectedDB(db)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors duration-150 ${
-                selectedDB === db ? 'bg-primary/20 border border-primary/30' : 'hover:bg-white/5'
+              className={`relative z-10 mb-2 w-full rounded-2xl px-3 py-3 text-left text-sm transition-all duration-150 last:mb-0 ${
+                selectedDB === db ? 'border border-cyan/25 bg-cyan/10 shadow-glow' : 'border border-white/10 bg-white/[0.035] hover:bg-white/[0.065]'
               }`}
             >
               <DBBadge name={db} size="sm" />
@@ -50,21 +55,35 @@ export default function RAGChatPage() {
         <UploadPanel selectedDB={selectedDB} />
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 card flex flex-col overflow-hidden">
-        <div className="px-5 py-3 border-b border-border flex items-center justify-between flex-shrink-0">
+      <div className="card flex min-w-0 flex-col overflow-hidden">
+        <div className="relative z-10 flex flex-shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-2">
-            <Bot size={16} className="text-primary" />
-            <span className="text-sm font-semibold text-gray-200">RAG Agent</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan/20 bg-cyan/10">
+              <Bot size={18} className="text-cyan" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">RAG Intelligence Workspace</p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500">streaming retrieval agent</p>
+            </div>
             <DBBadge name={selectedDB} size="sm" />
           </div>
-          <button onClick={clearChat} className="btn-ghost text-xs py-1 px-3">Clear</button>
+          <button onClick={clearChat} className="btn-ghost px-3 py-2 text-xs"><Trash2 size={14} />Clear</button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div className="relative z-10 flex-1 space-y-4 overflow-y-auto px-5 py-5">
           {chatHistory.length === 0 && (
-            <div className="h-full flex items-center justify-center text-gray-600 text-sm">
-              Upload a PDF and start asking questions about your Big Data knowledge base.
+            <div className="flex h-full items-center justify-center">
+              <div className="max-w-md text-center">
+                <motion.div
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                  className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl border border-cyan/20 bg-cyan/10 shadow-glow"
+                >
+                  <BrainCircuit size={28} className="text-cyan" />
+                </motion.div>
+                <h2 className="font-display text-2xl font-bold text-white">Ask the benchmark knowledge base.</h2>
+                <p className="mt-3 text-sm leading-6 text-slate-400">Upload a PDF, ingest it into the active vector engine, then query with citations and retrieval latency.</p>
+              </div>
             </div>
           )}
           <AnimatePresence initial={false}>
@@ -76,22 +95,22 @@ export default function RAGChatPage() {
                 className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.role === 'assistant' && (
-                  <div className="w-7 h-7 rounded-full bg-accent/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Bot size={14} className="text-accent" />
+                  <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border border-accent/20 bg-accent/15">
+                    <Bot size={15} className="text-accent" />
                   </div>
                 )}
-                <div className={`max-w-[75%] rounded-xl px-4 py-3 text-sm ${
+                <div className={`max-w-[78%] rounded-2xl border px-4 py-3 text-sm shadow-card ${
                   msg.role === 'user'
-                    ? 'bg-primary/25 text-white rounded-br-sm'
-                    : 'bg-white/5 text-gray-200 rounded-bl-sm'
+                    ? 'border-primary/20 bg-primary/20 text-white rounded-br-md'
+                    : 'border-white/10 bg-white/[0.055] text-slate-200 rounded-bl-md'
                 }`}>
-                  <p className="leading-relaxed">{msg.content}</p>
+                  <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                   {msg.latency && (
-                    <p className="text-xs text-gray-500 mt-1 font-mono">{msg.latency?.toFixed(1)} ms</p>
+                    <p className="mt-2 font-mono text-xs text-slate-500">{msg.latency?.toFixed(1)} ms</p>
                   )}
                 </div>
                 {msg.role === 'user' && (
-                  <div className="w-7 h-7 rounded-full bg-primary/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/15">
                     <User size={14} className="text-primary" />
                   </div>
                 )}
@@ -100,10 +119,10 @@ export default function RAGChatPage() {
           </AnimatePresence>
           {isPending && (
             <div className="flex gap-3">
-              <div className="w-7 h-7 rounded-full bg-accent/30 flex items-center justify-center">
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-accent/20 bg-accent/15">
                 <Bot size={14} className="text-accent" />
               </div>
-              <div className="bg-white/5 rounded-xl rounded-bl-sm px-4 py-3 flex items-center gap-1">
+              <div className="flex items-center gap-1 rounded-2xl rounded-bl-md border border-white/10 bg-white/[0.055] px-4 py-3">
                 {[0, 1, 2].map((i) => (
                   <span key={i} className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
                 ))}
@@ -113,20 +132,23 @@ export default function RAGChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        <div className="px-5 py-3 border-t border-border flex-shrink-0">
+        <div className="relative z-10 flex-shrink-0 border-t border-border px-5 py-4">
+          <div className="mb-3 flex items-center gap-2 text-xs text-slate-500">
+            <Sparkles size={13} className="text-cyan" />
+            Markdown, code snippets, and retrieval latency are rendered in the conversation stream.
+          </div>
           <div className="flex gap-2">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder={`Query your knowledge base via ${selectedDB}...`}
-              className="flex-1 bg-white/5 border border-border rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-600
-                         focus:outline-none focus:border-primary transition-colors"
+              className="premium-input flex-1 py-3"
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || isPending}
-              className="btn-primary px-4 py-2.5"
+              className="btn-primary px-4 py-3"
               aria-label="Send message"
             >
               <Send size={16} />

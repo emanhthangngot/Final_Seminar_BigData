@@ -33,6 +33,9 @@ export const api = {
   runTradeoffSweep: (ingest) =>
     http.post('/benchmark/tradeoff', { ingest }),
 
+  runHybridBenchmark: (query, filters, topK) =>
+    http.post('/benchmark/hybrid', { query, filters, top_k: topK }),
+
   // DX Score
   getDXScore: () => http.get('/dx'),
 

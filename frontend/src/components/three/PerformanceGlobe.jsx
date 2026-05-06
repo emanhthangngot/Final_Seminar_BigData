@@ -1,6 +1,6 @@
 import { useRef, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { OrbitControls, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
 
 const DB_METRICS = {
@@ -36,8 +36,32 @@ function RadarRing({ metrics, colors }) {
     <group ref={ref}>
       {rings.map(({ geo, color, db }) => (
         <line key={db} geometry={geo}>
-          <lineBasicMaterial color={color} transparent opacity={0.8} linewidth={2} />
+          <lineBasicMaterial color={color} transparent opacity={0.82} />
         </line>
+      ))}
+    </group>
+  )
+}
+
+function ReactorCore() {
+  const ref = useRef()
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.rotation.y = state.clock.elapsedTime * 0.35
+      ref.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.4) * 0.18
+    }
+  })
+  return (
+    <group ref={ref}>
+      <mesh>
+        <sphereGeometry args={[0.55, 48, 48]} />
+        <meshStandardMaterial color="#0b1024" emissive="#22D3EE" emissiveIntensity={0.55} roughness={0.2} metalness={0.45} transparent opacity={0.82} />
+      </mesh>
+      {[0, 1, 2, 3].map((i) => (
+        <mesh key={i} rotation={[Math.PI / 2 + i * 0.4, i * 0.8, 0]}>
+          <torusGeometry args={[1.05 + i * 0.27, 0.01, 8, 160]} />
+          <meshBasicMaterial color={i % 2 ? '#C084FC' : '#22D3EE'} transparent opacity={0.46} />
+        </mesh>
       ))}
     </group>
   )
@@ -46,8 +70,12 @@ function RadarRing({ metrics, colors }) {
 export default function PerformanceGlobe({ metrics = { Qdrant: 0.9, Weaviate: 0.75, Milvus: 0.85 } }) {
   return (
     <Canvas camera={{ position: [0, 2, 5], fov: 60 }} style={{ background: 'transparent' }}>
-      <ambientLight intensity={0.4} />
-      <pointLight position={[3, 3, 3]} intensity={1} />
+      <fog attach="fog" args={['#060816', 5, 13]} />
+      <ambientLight intensity={0.45} />
+      <pointLight position={[3, 3, 3]} intensity={1.2} color="#A8B4FF" />
+      <pointLight position={[-3, 1, 2]} intensity={0.8} color="#22D3EE" />
+      <Sparkles count={70} scale={4.2} size={1.6} speed={0.35} color="#A8F3FF" opacity={0.45} />
+      <ReactorCore />
       <RadarRing metrics={metrics} />
       <OrbitControls enablePan={false} autoRotate autoRotateSpeed={0.6} />
     </Canvas>

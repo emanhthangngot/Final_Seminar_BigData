@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Upload, FileText, X, CheckCircle } from 'lucide-react'
+import { Upload, FileText, X, CheckCircle, Database, Layers3 } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '../../services/api'
 
@@ -25,30 +25,51 @@ export default function UploadPanel({ selectedDB, onSuccess }) {
   })
 
   return (
-    <div className="card p-4 space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Data Ingestion</p>
+    <div className="card p-4 space-y-4">
+      <div className="relative z-10 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Data Ingestion</p>
+          <p className="mt-1 text-xs text-slate-500">PDF to chunks to embeddings</p>
+        </div>
+        <Database size={18} className="text-cyan" />
+      </div>
 
       <div
         {...getRootProps()}
-        className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors duration-150
-          ${isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-border-bright hover:bg-white/3'}`}
+        className={`relative z-10 cursor-pointer rounded-2xl border border-dashed p-5 text-center transition-all duration-200
+          ${isDragActive ? 'border-cyan bg-cyan/10 shadow-glow' : 'border-border bg-white/[0.035] hover:border-border-bright hover:bg-white/[0.065]'}`}
       >
         <input {...getInputProps()} />
-        <Upload size={20} className="mx-auto text-gray-500 mb-2" />
-        <p className="text-xs text-gray-400">
+        <motion.div
+          animate={{ y: isDragActive ? -3 : [0, -4, 0] }}
+          transition={{ duration: 2, repeat: isDragActive ? 0 : Infinity, ease: 'easeInOut' }}
+          className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan/20 bg-cyan/10"
+        >
+          <Upload size={20} className="text-cyan" />
+        </motion.div>
+        <p className="text-xs text-slate-300">
           {isDragActive ? 'Drop PDF here' : 'Drag PDF or click to select'}
         </p>
+      </div>
+
+      <div className="relative z-10 grid grid-cols-3 gap-2">
+        {['Parse', 'Embed', 'Index'].map((stage, idx) => (
+          <div key={stage} className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-2">
+            <Layers3 size={12} className="mb-1 text-slate-500" />
+            <p className="font-mono text-[10px] text-slate-500">{idx + 1}. {stage}</p>
+          </div>
+        ))}
       </div>
 
       <AnimatePresence>
         {file && (
           <motion.div
             initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2"
+            className="relative z-10 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2"
           >
             <FileText size={14} className="text-primary flex-shrink-0" />
             <span className="text-xs text-gray-300 truncate flex-1">{file.name}</span>
-            <button onClick={() => { setFile(null); reset() }} className="text-gray-500 hover:text-gray-300">
+            <button onClick={() => { setFile(null); reset() }} className="text-gray-400 hover:text-gray-300">
               <X size={14} />
             </button>
           </motion.div>
@@ -59,13 +80,13 @@ export default function UploadPanel({ selectedDB, onSuccess }) {
         <p className="text-xs text-qdrant">{error?.message ?? 'Ingestion failed'}</p>
       )}
       {isSuccess && (
-        <p className="text-xs text-milvus flex items-center gap-1">
+        <p className="relative z-10 text-xs text-milvus flex items-center gap-1">
           <CheckCircle size={12} /> Ingested successfully
         </p>
       )}
 
       <button
-        className="btn-primary w-full text-sm py-2"
+        className="btn-primary relative z-10 w-full text-sm py-2"
         disabled={!file || isPending || !selectedDB}
         onClick={() => mutate({ file, db: selectedDB })}
       >
