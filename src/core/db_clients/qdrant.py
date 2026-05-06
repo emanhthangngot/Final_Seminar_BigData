@@ -48,31 +48,39 @@ class QdrantWrapper(BaseVectorDB):
     # ------------------------------------------------------------------
     # Connection & Collection Management
     # ------------------------------------------------------------------
+    def _ensure_client(self) -> None:
+        """Ensure a live QdrantClient exists; create one if needed."""
+        if self.client is None:
+            self.client = QdrantClient(host=QDRANT_HOST, port=QDRANT_HTTP_PORT)
+            self.collection_name = COLLECTION_NAME
+
+    def _create_collection(self) -> None:
+        """Create the collection with canonical HNSW index (Fairness Protocol)."""
+        self.client.create_collection(
+            collection_name=self.collection_name,
+            vectors_config=models.VectorParams(
+                size=VECTOR_DIM,
+                distance=models.Distance.COSINE,
+            ),
+            # ========== FAIRNESS PROTOCOL ==========
+            hnsw_config=models.HnswConfigDiff(
+                m=INDEX_PARAMS["M"],                          # 16
+                ef_construct=INDEX_PARAMS["ef_construction"], # 128
+            ),
+        )
+        logger.info(
+            "[Qdrant] Collection '%s' created with HNSW M=%d, ef_construct=%d.",
+            self.collection_name,
+            INDEX_PARAMS["M"],
+            INDEX_PARAMS["ef_construction"],
+        )
+
     def connect(self) -> None:
-        self.client = QdrantClient(host=QDRANT_HOST, port=QDRANT_HTTP_PORT)
-        self.collection_name = COLLECTION_NAME
+        self._ensure_client()
 
         existing = {c.name for c in self.client.get_collections().collections}
         if self.collection_name not in existing:
-            self.client.create_collection(
-                collection_name=self.collection_name,
-                vectors_config=models.VectorParams(
-                    size=VECTOR_DIM,
-                    distance=models.Distance.COSINE,
-                ),
-                # ========== FAIRNESS PROTOCOL ==========
-                # Truyền tham số HNSW từ config chung, KHÔNG hardcode
-                hnsw_config=models.HnswConfigDiff(
-                    m=INDEX_PARAMS["M"],                          # 16
-                    ef_construct=INDEX_PARAMS["ef_construction"], # 128
-                ),
-            )
-            logger.info(
-                "[Qdrant] Collection '%s' created with HNSW M=%d, ef_construct=%d.",
-                self.collection_name,
-                INDEX_PARAMS["M"],
-                INDEX_PARAMS["ef_construction"],
-            )
+            self._create_collection()
         else:
             logger.info("[Qdrant] Collection '%s' already exists.", self.collection_name)
 
@@ -209,10 +217,16 @@ class QdrantWrapper(BaseVectorDB):
             must_conditions = []
             for key, value in filters.items():
                 if isinstance(value, dict):
-                    range_kwargs = {}
-                    for op in ("gte", "lte", "gt", "lt"):
-                        if op in value:
-                            range_kwargs[op] = value[op]
+                    range_kwargs = {
+                        op: value[op]
+                        for op in ("gte", "lte", "gt", "lt")
+                        if op in value
+                    }
+                    if not range_kwargs:
+                        raise ValueError(
+                            f"[Qdrant] Unsupported or empty range filter "
+                            f"for key '{key}': {value}"
+                        )
                     must_conditions.append(
                         models.FieldCondition(key=key, range=models.Range(**range_kwargs))
                     )
@@ -244,21 +258,20 @@ class QdrantWrapper(BaseVectorDB):
         HNSW index — provides a clean slate for benchmark iterations.
 
         Safe to call before ``connect()`` — if the client is not yet
-        initialised, it will be created first.
-        """
-        # Guard: ensure we have a live client before attempting to drop
-        if self.client is None:
-            logger.info("[Qdrant] No active client — calling connect() first.")
-            self.connect()
-            return  # connect() already creates a fresh collection
+        initialised, it will be created automatically.
 
-        try:
+        Always guarantees a **clean, empty** collection after returning,
+        regardless of prior state.
+        """
+        # Ensure we have a live client (creates one if needed)
+        self._ensure_client()
+
+        # Drop if exists
+        existing = {c.name for c in self.client.get_collections().collections}
+        if self.collection_name in existing:
             self.client.delete_collection(self.collection_name)
             logger.info("[Qdrant] Collection '%s' dropped.", self.collection_name)
-        except Exception as exc:
-            logger.warning("[Qdrant] Drop failed (may not exist): %s", exc)
 
-        # Recreate collection + index
-        self.connect()
+        # Recreate with canonical HNSW index
+        self._create_collection()
         logger.info("[Qdrant] Collection '%s' recreated (clean state).", self.collection_name)
-
