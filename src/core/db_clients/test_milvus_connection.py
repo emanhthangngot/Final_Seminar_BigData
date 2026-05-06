@@ -238,6 +238,32 @@ class MilvusPhase1Test:
                 f"got {len(results_no_filter)} result(s)",
             )
 
+            # Range filter should narrow results to rows with page >= 7.
+            results_range = self.db.search_hybrid(
+                query_text="page filter",
+                query_embedding=_make_deterministic_vector("page filter"),
+                filters={"page": {"gte": 7}},
+                top_k=5,
+            )
+            valid_range_ids = ("CID:0000003", "CID:0000005")
+            self._report(
+                "search_hybrid() applies page range filter",
+                bool(results_range)
+                and all(any(cid in r for cid in valid_range_ids) for r in results_range),
+                f"got {len(results_range)} result(s)",
+            )
+
+            try:
+                self.db.search_hybrid(
+                    query_text="bad filter",
+                    query_embedding=query_vec,
+                    filters={"unknown_field": "value"},
+                    top_k=1,
+                )
+                self._report("Rejects unsupported filter field", False)
+            except ValueError:
+                self._report("Rejects unsupported filter field", True)
+
         except Exception as exc:
             self._report("search_hybrid()", False, str(exc))
 
@@ -269,9 +295,9 @@ class MilvusPhase1Test:
 
             try:
                 self.db.insert(bad_chunks, bad_embeddings)
-                self._report("Rejects wrong dimension", False, "Should have raised AssertionError")
-            except AssertionError:
-                self._report("Rejects wrong dimension (AssertionError)", True)
+                self._report("Rejects wrong dimension", False, "Should have raised ValueError")
+            except ValueError:
+                self._report("Rejects wrong dimension (ValueError)", True)
 
         except Exception as exc:
             self._report("dimension validation", False, str(exc))

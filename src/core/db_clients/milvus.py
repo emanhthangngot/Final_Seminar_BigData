@@ -42,6 +42,24 @@ COLLECTION_NAME = format_milvus_collection_name("Seminar_RAG_Collection")
 
 # Batch size for large corpus ingestion — avoids timeout/OOM on 10K+ chunks
 INSERT_BATCH_SIZE = 500
+FILTER_FIELDS = {
+    "source": "string",
+    "category": "string",
+    "page": "number",
+}
+FILTER_OPERATORS = {
+    "eq": "==",
+    "equal": "==",
+    "ne": "!=",
+    "neq": "!=",
+    "not_equal": "!=",
+    "gt": ">",
+    "gte": ">=",
+    "ge": ">=",
+    "lt": "<",
+    "lte": "<=",
+    "le": "<=",
+}
 
 
 class MilvusWrapper(BaseVectorDB):
@@ -169,12 +187,17 @@ class MilvusWrapper(BaseVectorDB):
         if not chunks:
             logger.warning("[Milvus] insert() called with empty chunks list.")
             return False
-
-        # Validate dimension
-        for i, emb in enumerate(embeddings):
-            assert len(emb) == VECTOR_DIM, (
-                f"[Milvus] Embedding #{i} has dim={len(emb)}, expected {VECTOR_DIM}"
+        if len(chunks) != len(embeddings):
+            raise ValueError(
+                f"[Milvus] chunks length ({len(chunks)}) must match "
+                f"embeddings length ({len(embeddings)})."
             )
+
+        for i, emb in enumerate(embeddings):
+            if len(emb) != VECTOR_DIM:
+                raise ValueError(
+                    f"[Milvus] Embedding #{i} has dim={len(emb)}, expected {VECTOR_DIM}"
+                )
 
         # Build per-row metadata lists
         sources = []
@@ -184,7 +207,7 @@ class MilvusWrapper(BaseVectorDB):
             meta = (metadata[i] if metadata and i < len(metadata) else {}) or {}
             sources.append(str(meta.get("source", "")))
             categories.append(str(meta.get("category", "")))
-            pages.append(int(meta.get("page", 0)))
+            pages.append(self._coerce_page(meta.get("page", 0), field_name="page"))
 
         # --- Batch insert for 10K+ corpus stability ---
         total = len(chunks)
@@ -236,32 +259,81 @@ class MilvusWrapper(BaseVectorDB):
     # Hybrid Search (Dense + Boolean Expr Filter + RRF Reranking)
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _build_expr(filters: Dict[str, Any]) -> Optional[str]:
+    @classmethod
+    def _build_expr(cls, filters: Dict[str, Any]) -> Optional[str]:
         """
         Translate a ``filters`` dict into a Milvus boolean expression string.
 
         Examples:
-            {"category": "tech"}          -> 'category == "tech"'
-            {"category": "tech", "page": 5} -> 'category == "tech" and page == 5'
+            {"category": "tech"}             -> 'category == "tech"'
+            {"page": {"gte": 3, "lte": 10}}  -> 'page >= 3 and page <= 10'
+            {"category": {"in": ["a", "b"]}} -> 'category in ["a", "b"]'
         """
         if not filters:
             return None
+
         parts = []
         for key, value in filters.items():
-            if isinstance(value, str):
-                safe = value.replace('"', '\\"')
-                parts.append(f'{key} == "{safe}"')
-            elif isinstance(value, bool):
-                parts.append(f"{key} == {str(value).lower()}")
-            elif isinstance(value, (int, float)):
-                parts.append(f"{key} == {value}")
-            else:
-                logger.warning(
-                    "[Milvus] Unsupported filter type for key '%s': %s",
-                    key, type(value).__name__,
-                )
+            if key not in FILTER_FIELDS:
+                raise ValueError(f"[Milvus] Unsupported filter field: {key}")
+            parts.extend(cls._conditions_for_filter(key, value))
+
         return " and ".join(parts) if parts else None
+
+    @classmethod
+    def _conditions_for_filter(cls, key: str, value: Any) -> List[str]:
+        if isinstance(value, dict):
+            conditions = []
+            for operator, operand in value.items():
+                normalized_operator = str(operator).lower().lstrip("$")
+                if normalized_operator in ("in", "any_of"):
+                    conditions.append(cls._format_in_condition(key, operand))
+                    continue
+                if normalized_operator not in FILTER_OPERATORS:
+                    raise ValueError(
+                        f"[Milvus] Unsupported filter operator for '{key}': {operator}"
+                    )
+                conditions.append(
+                    f"{key} {FILTER_OPERATORS[normalized_operator]} "
+                    f"{cls._format_filter_value(key, operand)}"
+                )
+            return conditions
+
+        if isinstance(value, (list, tuple, set)):
+            return [cls._format_in_condition(key, value)]
+
+        return [f"{key} == {cls._format_filter_value(key, value)}"]
+
+    @classmethod
+    def _format_in_condition(cls, key: str, values: Any) -> str:
+        if isinstance(values, (str, bytes)) or not isinstance(values, (list, tuple, set)):
+            values = [values]
+        values = list(values)
+        if not values:
+            raise ValueError(f"[Milvus] Empty IN filter for '{key}' is not allowed.")
+        formatted = ", ".join(cls._format_filter_value(key, value) for value in values)
+        return f"{key} in [{formatted}]"
+
+    @classmethod
+    def _format_filter_value(cls, key: str, value: Any) -> str:
+        field_type = FILTER_FIELDS[key]
+        if field_type == "number":
+            return str(cls._coerce_page(value, field_name=key))
+        if value is None:
+            raise ValueError(f"[Milvus] None is not a valid filter value for '{key}'.")
+        safe = str(value).replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{safe}"'
+
+    @staticmethod
+    def _coerce_page(value: Any, field_name: str) -> int:
+        if isinstance(value, bool):
+            raise ValueError(f"[Milvus] Boolean value is not valid for '{field_name}'.")
+        try:
+            return int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"[Milvus] Filter/metadata field '{field_name}' must be an integer."
+            ) from exc
 
     @time_profiler
     def search_hybrid(
@@ -313,14 +385,14 @@ class MilvusWrapper(BaseVectorDB):
 
             results = self.collection.hybrid_search(
                 reqs=[dense_req],
-                ranker=reranker,
+                rerank=reranker,
                 limit=top_k,
                 output_fields=["content"],
             )
             logger.info("[Milvus] Hybrid search via AnnSearchRequest + RRFRanker.")
             return [hit.entity.get("content") for hit in results[0]]
 
-        except (ImportError, TypeError, Exception) as exc:
+        except (ImportError, TypeError) as exc:
             # Fallback: basic search + expr filter
             logger.info(
                 "[Milvus] RRFRanker unavailable (%s), falling back to expr filter.",
