@@ -15,6 +15,7 @@ Capabilities:
   - reset_collection(): drop + recreate for clean benchmark runs
 """
 
+import time
 from typing import List, Dict, Any, Optional
 
 from pymilvus import (
@@ -33,12 +34,25 @@ from src.config import (
     VECTOR_DIM,
     INDEX_PARAMS,  # <- canonical HNSW params shared with Qdrant & Weaviate
 )
-from src.core.benchmark.profiler import time_profiler
+from src.core.benchmark.profiler import time_profiler, log_metrics
 from src.core.utils.logger import logger
 from src.core.utils.helpers import format_milvus_collection_name
 
 
 COLLECTION_NAME = format_milvus_collection_name("Seminar_RAG_Collection")
+
+
+def _get_process_ram_mb() -> float:
+    """
+    Return current process RSS memory in MB.
+    Uses psutil if available; falls back to 0.0 so the rest of connect()
+    always works even without the package installed.
+    """
+    try:
+        import psutil, os
+        return psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
+    except Exception:
+        return 0.0
 
 # Batch size for large corpus ingestion — avoids timeout/OOM on 10K+ chunks
 INSERT_BATCH_SIZE = 500
@@ -155,8 +169,22 @@ class MilvusWrapper(BaseVectorDB):
                 self.collection_name,
             )
 
-        # Load collection into memory so search() is available immediately
+        # ── Load collection into memory with timing + RAM spike monitoring ──
+        _ram_before = _get_process_ram_mb()
+        _t_load = time.perf_counter()
         self.collection.load()
+        _load_ms = (time.perf_counter() - _t_load) * 1000
+        _ram_after = _get_process_ram_mb()
+
+        # Log load timing to metrics.csv
+        log_metrics("Milvus", "load", _load_ms)
+
+        _ram_delta = _ram_after - _ram_before
+        logger.info(
+            "[Milvus] collection.load() took %.2f ms | "
+            "RAM before=%.1f MB, after=%.1f MB, spike=+%.1f MB",
+            _load_ms, _ram_before, _ram_after, max(_ram_delta, 0.0),
+        )
         logger.info("[Milvus] Collection loaded into memory — ready for queries.")
 
     # ------------------------------------------------------------------
@@ -228,8 +256,11 @@ class MilvusWrapper(BaseVectorDB):
                     "[Milvus] Batch inserted %d/%d chunks.", inserted, total
                 )
 
+        _t_flush_start = time.perf_counter()
         self.collection.flush()
-        logger.info("[Milvus] Inserted %d chunks total and flushed.", total)
+        _flush_ms = (time.perf_counter() - _t_flush_start) * 1000
+        log_metrics("Milvus", "flush", _flush_ms)
+        logger.info("[Milvus] Inserted %d chunks total and flushed (%.2f ms).", total, _flush_ms)
         return True
 
     # ------------------------------------------------------------------
