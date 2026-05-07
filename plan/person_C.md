@@ -41,6 +41,55 @@ Sắm vai Chuyên gia nền tảng về hệ CSDL Vector **Milvus**. Vận hành
   so sánh Latency giữa chế độ Vector Only vs. expr filter.
 - Đảm bảo data trong `metrics.csv` có đủ: `timestamp`, `Engine=Milvus`, `Operation`, `Duration_ms`.
 
+#### Stage 3 - Checklist Benchmark Milvus cần bàn giao
+
+**Mục tiêu:** Chứng minh Milvus hoạt động ổn định ở workload RAG benchmark, đồng thời làm rõ chi phí của kiến trúc nặng hơn: cần `load()`, có etcd/MinIO, nhưng mạnh ở schema rõ và boolean filter bằng `expr`.
+
+- Chạy accuracy benchmark cho riêng Milvus bằng `run_accuracy_benchmark()`:
+  - Smoke: `corpus_size=1000`, `num_queries=50`.
+  - Final nếu máy đủ RAM: `corpus_size=10000`, `num_queries=200`.
+  - Ghi lại `Recall@1`, `Recall@5`, `Recall@10`, `MRR`, `AvgLatency_ms`, `Errors`.
+  - Nếu Recall lệch hơn 5% so với Qdrant/Weaviate, kiểm tra `metric_type`, `ef`, collection đã `load()` chưa, dữ liệu có bị lẫn từ lần benchmark trước không.
+- Chạy tradeoff sweep bằng `run_tradeoff_sweep()` với `top_k = 1, 2, 5, 10, 20, 50`.
+  - Ghi rõ latency trung bình từng top_k.
+  - Đánh dấu điểm Milvus có recall tăng nhưng latency tăng mạnh nếu có.
+- Chạy filter latency benchmark bằng `search_hybrid()` với `expr`:
+  - Dense-only baseline: không filter.
+  - Equality filter: ví dụ `category == "tech"`.
+  - Range filter: ví dụ `page >= 3 and page <= 10`.
+  - Combined filter: ví dụ `category == "tech" and page >= 3`.
+  - `in` filter nếu wrapper/runtime hỗ trợ: ví dụ `category in ["tech", "science"]`.
+- Đo riêng chi phí vận hành Milvus:
+  - Thời gian `insert + flush`.
+  - Thời gian `collection.load()`.
+  - RAM idle của `milvus-standalone`, `etcd`, `minio`.
+  - RAM peak khi ingest và sau khi load collection.
+  - CPU/RAM khi query có `expr` filter.
+- Kiểm tra output có thể dùng trực tiếp cho frontend:
+  - `recall.csv` có row `Engine=Milvus`.
+  - `tradeoff.csv` có đủ 6 điểm top_k cho `Engine=Milvus`.
+  - `metrics.csv` có operation tối thiểu: `insert`, `flush`, `load`, `search`, `search_hybrid`.
+
+#### Stage 3 - Nội dung phân tích Milvus cần viết
+
+- Giải thích đặc thù Milvus:
+  - Collection schema chặt chẽ hơn Qdrant/Weaviate.
+  - Cần `flush()` và `load()` để dữ liệu sẵn sàng search.
+  - Standalone vẫn kéo theo nhiều thành phần phụ nên resource footprint cao hơn.
+- Nhận xét filter/DX:
+  - Điểm mạnh: `expr` giống SQL, dễ giải thích trong báo cáo Big Data.
+  - Điểm khó: schema phải khai báo trước, collection/index/load lifecycle nhiều bước, debug phức tạp hơn.
+- Kết luận thực dụng:
+  - Milvus phù hợp khi cần hệ vector DB kiểu enterprise, schema rõ, hướng tới scale lớn.
+  - Với demo local/seminar, cần nhấn mạnh trade-off: mạnh về kiến trúc nhưng nặng tài nguyên.
+
+#### Stage 3 - Definition of Done cho C
+
+- Milvus pass lại smoke test connect/reset/insert/search/search_hybrid.
+- Có số liệu Recall@K, MRR, AvgLatency, tradeoff curve, filter latency và resource usage.
+- Có đoạn phân tích 1/2 đến 1 trang cho báo cáo về Milvus schema, `expr` filter, `load()` cost và DX.
+- Gửi cho A: bảng số liệu, CSV hoặc JSON output, nhận xét ngắn 3-5 bullet để đưa vào `/latency`, `/accuracy`, `/tradeoff`, `/hybrid`, `/dx-score`.
+
 ### Tuần 4: Sắp Xếp Trình Bày Document & Video Demo
 - Viết báo cáo chuyên sâu: sự đánh đổi giữa cấu trúc phân tán (Distributed Log-broker) cồng kềnh với tốc độ siêu việt của bộ lọc Boolean.
 - Khảo cứu thực trạng: Github stars, License model, Cloud offering.

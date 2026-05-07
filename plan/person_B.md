@@ -36,6 +36,55 @@
   phức tạp dần). Báo cáo cho A để add vào tab `/hybrid`.
 - Kiểm tra dữ liệu `metrics.csv` có đủ fields: `timestamp`, `Engine`, `Operation`, `Duration_ms`.
 
+#### Stage 3 - Checklist Benchmark Weaviate cần bàn giao
+
+**Mục tiêu:** Không chỉ chứng minh Weaviate search được, mà phải có số liệu cho thấy Weaviate mạnh/yếu ở đâu khi so với Qdrant và Milvus trên cùng corpus, cùng query, cùng HNSW params.
+
+- Chạy accuracy benchmark cho riêng Weaviate bằng `run_accuracy_benchmark()` với synthetic corpus thống nhất:
+  - Smoke: `corpus_size=1000`, `num_queries=50`.
+  - Final nếu máy đủ RAM: `corpus_size=10000`, `num_queries=200`.
+  - Ghi lại `Recall@1`, `Recall@5`, `Recall@10`, `MRR`, `AvgLatency_ms`, `Errors`.
+- Chạy tradeoff sweep bằng `run_tradeoff_sweep()` với `top_k = 1, 2, 5, 10, 20, 50`.
+  - Mục tiêu là lấy các điểm Recall-vs-Latency để A đưa lên biểu đồ `/tradeoff`.
+  - Nếu `Recall@5` thấp bất thường, kiểm tra lại `vectorizer_config=None`, `distance_metric`, `ef`, và việc dữ liệu đã được reset/ingest sạch chưa.
+- Chạy hybrid/filter benchmark để làm rõ điểm mạnh native hybrid của Weaviate:
+  - Dense-only: gọi `search(query_embedding, top_k)`.
+  - Hybrid no-filter: gọi `search_hybrid(query_text, query_embedding, filters=None, top_k)`.
+  - Hybrid equality filter: ví dụ `{"category": "tech"}`.
+  - Hybrid range filter: ví dụ `{"page": {"gte": 3, "lte": 10}}`.
+  - Hybrid combined filter: ví dụ `{"category": "tech", "page": {"gte": 3}}`.
+- Thử ít nhất 3 giá trị `alpha` để phân tích trade-off BM25 vs vector:
+  - `alpha=0.25`: nghiêng về keyword/BM25.
+  - `alpha=0.50`: cân bằng.
+  - `alpha=0.75`: nghiêng về vector similarity.
+  - Ghi nhận alpha nào cho latency/recall ổn nhất để đưa vào nhận xét slide.
+- Thu thập resource data khi chạy Weaviate:
+  - RAM idle trước benchmark.
+  - RAM peak khi ingest.
+  - RAM/CPU trung bình khi search.
+  - Nếu dùng Docker, lấy từ `/api/v1/resources` hoặc `docker stats` rồi gửi bảng số liệu cho A.
+- Kiểm tra output có thể dùng trực tiếp cho frontend:
+  - `recall.csv` có row `Engine=Weaviate`.
+  - `tradeoff.csv` có đủ 6 điểm top_k cho `Engine=Weaviate`.
+  - `metrics.csv` có các operation tối thiểu: `insert`, `search`, `search_hybrid`.
+
+#### Stage 3 - Nội dung phân tích Weaviate cần viết
+
+- Giải thích vì sao Weaviate có lợi thế ở Hybrid Search: native BM25 + vector trong cùng query API.
+- Nhận xét DX API:
+  - Điểm dễ: schema rõ, `collection.query.hybrid(...)` trực tiếp, filter API expressive.
+  - Điểm khó: version SDK thay đổi nhanh, cần lifecycle `close()`, cần cấu hình `vectorizer_config=None` để benchmark công bằng.
+- Kết luận thực dụng:
+  - Weaviate phù hợp khi app RAG cần hybrid keyword + semantic search nhanh.
+  - Nếu chỉ cần dense vector latency thấp nhất, phải so với Qdrant bằng số liệu thực tế.
+
+#### Stage 3 - Definition of Done cho B
+
+- Weaviate pass lại smoke test insert/search/hybrid/filter sau khi reset collection.
+- Có số liệu Recall@K, MRR, AvgLatency, tradeoff curve và resource usage.
+- Có đoạn phân tích 1/2 đến 1 trang cho báo cáo về Weaviate Hybrid Search và API DX.
+- Gửi cho A: bảng số liệu, CSV hoặc JSON output, nhận xét ngắn 3-5 bullet để đưa vào `/hybrid`, `/accuracy`, `/tradeoff`, `/dx-score`.
+
 ### Tuần 4: Viết Report Academic Khoa Học
 - Tập trung sâu vào việc phân tích: Kiến trúc Modular của Weaviate đã hỗ trợ thuật toán Hybrid Search ngầm định (BM25 + Vector) xuất sắc ra sao so với việc phải code thủ công BM25 trên 2 hệ DB còn lại.
 - Trình bày một Architecture Diagram minh hoạ khối dịch vụ Weaviate.

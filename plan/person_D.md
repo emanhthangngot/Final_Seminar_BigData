@@ -38,6 +38,54 @@
   giúp tăng Recall@1 ở các câu hỏi điều kiện.
 - Đảm bảo data trong `metrics.csv`: `Engine=Qdrant`, đủ `timestamp`, `Operation`, `Duration_ms`.
 
+#### Stage 3 - Checklist Benchmark Qdrant cần bàn giao
+
+**Mục tiêu:** Chứng minh Qdrant là lựa chọn nhẹ, nhanh và dễ vận hành cho RAG local/self-host, đặc biệt khi cần payload filtering với latency thấp.
+
+- Chạy accuracy benchmark cho riêng Qdrant bằng `run_accuracy_benchmark()`:
+  - Smoke: `corpus_size=1000`, `num_queries=50`.
+  - Final nếu máy đủ RAM: `corpus_size=10000`, `num_queries=200`.
+  - Ghi lại `Recall@1`, `Recall@5`, `Recall@10`, `MRR`, `AvgLatency_ms`, `Errors`.
+  - Nếu Recall thấp bất thường, kiểm tra `Distance.COSINE`, `hnsw_ef`, vector dimension và collection đã reset/ingest sạch chưa.
+- Chạy tradeoff sweep bằng `run_tradeoff_sweep()` với `top_k = 1, 2, 5, 10, 20, 50`.
+  - Mục tiêu là chứng minh Qdrant nằm gần vùng latency thấp trên biểu đồ Pareto.
+  - Ghi rõ top_k nào là điểm cân bằng tốt nhất giữa Recall và AvgLatency.
+- Chạy payload filter benchmark bằng `search_hybrid()`:
+  - Dense-only baseline: không filter.
+  - Equality filter: ví dụ `{"category": "tech"}`.
+  - Range filter: ví dụ `{"page": {"gte": 3, "lte": 10}}`.
+  - Combined filter: ví dụ `{"category": "tech", "page": {"gte": 3}}`.
+  - Ghi nhận latency chênh lệch giữa no-filter và filter.
+- Đo resource data để làm highlight cho slide:
+  - RAM idle của container Qdrant.
+  - RAM peak khi ingest.
+  - RAM/CPU khi search liên tục.
+  - So sánh tương đối với Weaviate/Milvus nếu có số liệu cùng máy.
+- Kiểm tra output có thể dùng trực tiếp cho frontend:
+  - `recall.csv` có row `Engine=Qdrant`.
+  - `tradeoff.csv` có đủ 6 điểm top_k cho `Engine=Qdrant`.
+  - `metrics.csv` có operation tối thiểu: `insert`, `search`, `search_hybrid`.
+
+#### Stage 3 - Nội dung phân tích Qdrant cần viết
+
+- Giải thích vì sao Qdrant thường là baseline mạnh cho RAG self-host:
+  - API payload filter rõ ràng.
+  - Không cần nhiều service phụ như Milvus.
+  - Resource footprint thường thấp hơn, phù hợp laptop/demo/startup.
+- Nhận xét DX API:
+  - Điểm dễ: collection API gọn, `models.Filter` rõ nghĩa, SDK Python dễ đọc.
+  - Điểm khó: hybrid BM25/sparse thật sự cần cấu hình thêm, hiện wrapper chủ yếu là dense + payload filter.
+- Kết luận thực dụng:
+  - Qdrant phù hợp khi ưu tiên latency thấp, triển khai nhanh, resource nhẹ.
+  - Nếu bài toán cần hybrid keyword native mạnh, phải so trực tiếp với Weaviate bằng số liệu filter/hybrid.
+
+#### Stage 3 - Definition of Done cho D
+
+- Qdrant pass lại smoke test connect/reset/insert/search/search_hybrid.
+- Có số liệu Recall@K, MRR, AvgLatency, tradeoff curve, payload filter latency và resource usage.
+- Có đoạn phân tích 1/2 đến 1 trang cho báo cáo về Qdrant payload filtering, RAM profile và SDK DX.
+- Gửi cho A: bảng số liệu, CSV hoặc JSON output, nhận xét ngắn 3-5 bullet để đưa vào `/latency`, `/accuracy`, `/tradeoff`, `/hybrid`, `/dx-score`.
+
 ### Tuần 4: Paper Document Analysis
 - Viết báo cáo về DX Score: Vì sao Rust SDK của Qdrant thanh lịch, clean.
 - Đào sâu: chiến lược Binary/Scalar Quantization → đột phá RAM.
