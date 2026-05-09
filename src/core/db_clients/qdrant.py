@@ -23,7 +23,7 @@ from qdrant_client.http import models
 from src.core.db_clients.base import BaseVectorDB
 from src.config import (
     QDRANT_HOST,
-    QDRANT_HTTP_PORT,
+    QDRANT_GRPC_PORT,
     VECTOR_DIM,
     INDEX_PARAMS,  # <-- canonical HNSW params shared with Weaviate & Milvus
 )
@@ -51,7 +51,11 @@ class QdrantWrapper(BaseVectorDB):
     def _ensure_client(self) -> None:
         """Ensure a live QdrantClient exists; create one if needed."""
         if self.client is None:
-            self.client = QdrantClient(host=QDRANT_HOST, port=QDRANT_HTTP_PORT)
+            self.client = QdrantClient(
+                host=QDRANT_HOST,
+                grpc_port=QDRANT_GRPC_PORT,
+                prefer_grpc=True
+            )
             self.collection_name = COLLECTION_NAME
 
     def _create_collection(self) -> None:

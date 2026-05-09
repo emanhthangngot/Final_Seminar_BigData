@@ -1,0 +1,7 @@
+Engine,top_k,Recall,AvgLatency_ms
+Qdrant,1,6.5,4.81
+Qdrant,2,8.0,4.99
+Qdrant,5,14.5,5.22
+Qdrant,10,17.5,5.52
+Qdrant,20,24.5,5.75
+Qdrant,50,39.5,6.53
