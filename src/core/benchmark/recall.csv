@@ -1,0 +1,2 @@
+Engine,Recall@1,Recall@5,Recall@10,MRR,AvgLatency_ms,Errors
+Weaviate,14.0,38.0,44.0,0.23,14.2,0

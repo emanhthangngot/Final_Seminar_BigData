@@ -1,0 +1,7 @@
+Engine,top_k,Recall,AvgLatency_ms
+Weaviate,1,14.0,14.17
+Weaviate,2,22.0,14.04
+Weaviate,5,38.0,14.1
+Weaviate,10,44.0,15.17
+Weaviate,20,60.0,15.54
+Weaviate,50,82.0,16.09

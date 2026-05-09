@@ -44,12 +44,20 @@ def _build_metadata(ids: List[str]) -> List[Dict[str, Any]]:
     return metadata
 
 
+def _normalize_resource_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(row)
+    ts = normalized.get("timestamp")
+    if hasattr(ts, "isoformat"):
+        normalized["timestamp"] = ts.isoformat()
+    return normalized
+
+
 def _sample_resources(samples: int = 3, delay_s: float = 0.5) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     for _ in range(samples):
         stat = get_container_stats("Weaviate")
         if stat:
-            rows.append(stat)
+            rows.append(_normalize_resource_row(stat))
         time.sleep(delay_s)
     return rows
 

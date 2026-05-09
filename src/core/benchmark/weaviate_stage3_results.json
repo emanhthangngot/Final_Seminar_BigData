@@ -1,0 +1,154 @@
+{
+  "meta": {
+    "mode": "smoke",
+    "bench_corpus_size": 10000,
+    "bench_num_queries": 200,
+    "hybrid_alphas": [
+      0.25,
+      0.5,
+      0.75
+    ]
+  },
+  "scenarios": {
+    "smoke": {
+      "accuracy": [
+        {
+          "Engine": "Weaviate",
+          "Recall@1": 14.0,
+          "Recall@5": 38.0,
+          "Recall@10": 44.0,
+          "MRR": 0.23,
+          "AvgLatency_ms": 14.2,
+          "Errors": 0
+        }
+      ],
+      "tradeoff": [
+        {
+          "Engine": "Weaviate",
+          "top_k": 1,
+          "Recall": 14.0,
+          "AvgLatency_ms": 14.17
+        },
+        {
+          "Engine": "Weaviate",
+          "top_k": 2,
+          "Recall": 22.0,
+          "AvgLatency_ms": 14.04
+        },
+        {
+          "Engine": "Weaviate",
+          "top_k": 5,
+          "Recall": 38.0,
+          "AvgLatency_ms": 14.1
+        },
+        {
+          "Engine": "Weaviate",
+          "top_k": 10,
+          "Recall": 44.0,
+          "AvgLatency_ms": 15.17
+        },
+        {
+          "Engine": "Weaviate",
+          "top_k": 20,
+          "Recall": 60.0,
+          "AvgLatency_ms": 15.54
+        },
+        {
+          "Engine": "Weaviate",
+          "top_k": 50,
+          "Recall": 82.0,
+          "AvgLatency_ms": 16.09
+        }
+      ],
+      "resources": {
+        "before": [],
+        "after_ingest": [],
+        "after_tradeoff": []
+      }
+    }
+  },
+  "hybrid": {
+    "resources_before": [],
+    "results": [
+      {
+        "case": "dense_only",
+        "alpha": null,
+        "result_count": 5,
+        "latency_ms": 15.1055490005092
+      },
+      {
+        "case": "hybrid_no_filter",
+        "alpha": 0.25,
+        "result_count": 5,
+        "latency_ms": 17.87122599853319
+      },
+      {
+        "case": "hybrid_no_filter",
+        "alpha": 0.5,
+        "result_count": 5,
+        "latency_ms": 17.424534000383574
+      },
+      {
+        "case": "hybrid_no_filter",
+        "alpha": 0.75,
+        "result_count": 5,
+        "latency_ms": 17.518100999950548
+      },
+      {
+        "case": "hybrid_category",
+        "alpha": 0.25,
+        "result_count": 5,
+        "latency_ms": 17.870640000182902
+      },
+      {
+        "case": "hybrid_category",
+        "alpha": 0.5,
+        "result_count": 5,
+        "latency_ms": 16.30170399948838
+      },
+      {
+        "case": "hybrid_category",
+        "alpha": 0.75,
+        "result_count": 5,
+        "latency_ms": 17.052179000529577
+      },
+      {
+        "case": "hybrid_range",
+        "alpha": 0.25,
+        "result_count": 5,
+        "latency_ms": 16.851365000547958
+      },
+      {
+        "case": "hybrid_range",
+        "alpha": 0.5,
+        "result_count": 5,
+        "latency_ms": 17.244176000531297
+      },
+      {
+        "case": "hybrid_range",
+        "alpha": 0.75,
+        "result_count": 5,
+        "latency_ms": 16.93215399973269
+      },
+      {
+        "case": "hybrid_combined",
+        "alpha": 0.25,
+        "result_count": 5,
+        "latency_ms": 16.851645999850007
+      },
+      {
+        "case": "hybrid_combined",
+        "alpha": 0.5,
+        "result_count": 5,
+        "latency_ms": 16.983364999759942
+      },
+      {
+        "case": "hybrid_combined",
+        "alpha": 0.75,
+        "result_count": 5,
+        "latency_ms": 17.102637999414583
+      }
+    ],
+    "resources_after": []
+  }
+}
