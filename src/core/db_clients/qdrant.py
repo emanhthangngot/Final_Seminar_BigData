@@ -189,6 +189,7 @@ class QdrantWrapper(BaseVectorDB):
         query_embedding: List[float],
         filters: Dict[str, Any] = None,
         top_k: int = 5,
+        alpha: float | None = None,
     ) -> List[str]:
         """
         Dense vector search combined with Qdrant Filter conditions.
@@ -212,6 +213,7 @@ class QdrantWrapper(BaseVectorDB):
         """
         # Reserved for future sparse/BM25-style hybrid retrieval parity.
         _ = query_text
+        _ = alpha
 
         query_filter = None
         if filters:

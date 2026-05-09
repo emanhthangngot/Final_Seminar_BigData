@@ -223,25 +223,41 @@ class WeaviateWrapper(BaseVectorDB):
         query_embedding: List[float],
         filters: Dict[str, Any] = None,
         top_k: int = 5,
+        alpha: Optional[float] = None,
     ) -> List[str]:
         """
         Run Weaviate hybrid search with an optional metadata filter.
 
         Weaviate combines BM25 keyword scoring from ``query_text`` with the
-        dense vector supplied by ``query_embedding``. ``HYBRID_ALPHA`` keeps
-        the Week-2 default neutral: 0.0 = BM25 only, 1.0 = vector only.
+        dense vector supplied by ``query_embedding``. ``alpha`` controls the
+        mix: 0.0 = BM25 only, 1.0 = vector only. When omitted, ``HYBRID_ALPHA``
+        is used as the neutral default.
         """
         self._validate_query_embedding(query_embedding)
 
         collection = self.client.collections.get(self.collection_name)
+        hybrid_alpha = self._resolve_hybrid_alpha(alpha)
         response = collection.query.hybrid(
             query=query_text,
             vector=query_embedding,
-            alpha=HYBRID_ALPHA,
+            alpha=hybrid_alpha,
             limit=top_k,
             filters=self._build_filter(filters),
         )
         return [obj.properties.get("content", "") for obj in response.objects]
+
+    def _resolve_hybrid_alpha(self, alpha: Optional[float]) -> float:
+        if alpha is None:
+            return HYBRID_ALPHA
+        try:
+            value = float(alpha)
+        except (TypeError, ValueError):
+            logger.warning("[Weaviate] Invalid alpha '%s'; using default %.2f.", alpha, HYBRID_ALPHA)
+            return HYBRID_ALPHA
+        if value < 0.0 or value > 1.0:
+            logger.warning("[Weaviate] Alpha out of range (0..1): %.3f; using default %.2f.", value, HYBRID_ALPHA)
+            return HYBRID_ALPHA
+        return value
 
     def _build_filter(self, filters: Optional[Dict[str, Any]] = None):
         if not filters:

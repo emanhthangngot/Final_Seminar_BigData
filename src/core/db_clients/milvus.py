@@ -342,6 +342,7 @@ class MilvusWrapper(BaseVectorDB):
         query_embedding: List[float],
         filters: Dict[str, Any] = None,
         top_k: int = 5,
+        alpha: float | None = None,
     ) -> List[str]:
         """
         Hybrid search combining dense vector ANN with boolean ``expr`` filtering.
@@ -362,6 +363,7 @@ class MilvusWrapper(BaseVectorDB):
             Number of results to return.
         """
         expr = self._build_expr(filters)
+        _ = alpha
         if expr:
             logger.info("[Milvus] Hybrid search with expr: %s", expr)
 

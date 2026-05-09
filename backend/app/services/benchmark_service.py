@@ -34,13 +34,21 @@ class BenchmarkService:
         )
         return df.to_dict(orient="records")
 
-    def run_hybrid(self, query: str, filters: dict | None, top_k: int) -> list[dict]:
+    def run_hybrid(
+        self,
+        query: str,
+        filters: dict | None,
+        top_k: int,
+        alpha: float | None,
+    ) -> list[dict]:
         query_embedding = self.embedder.embed_query(query)
         rows: list[dict] = []
         for name, db in db_service.all().items():
             started = time.perf_counter()
             try:
-                results = db.search_hybrid(query, query_embedding, filters=filters, top_k=top_k)
+                results = db.search_hybrid(
+                    query, query_embedding, filters=filters, top_k=top_k, alpha=alpha
+                )
                 rows.append({
                     "Engine": name,
                     "Latency_ms": (time.perf_counter() - started) * 1000,

@@ -23,7 +23,7 @@ class BenchmarkController:
     @staticmethod
     def hybrid(req: HybridBenchmarkRequest) -> list[dict]:
         try:
-            return benchmark_service.run_hybrid(req.query, req.filters, req.top_k)
+            return benchmark_service.run_hybrid(req.query, req.filters, req.top_k, req.alpha)
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
 
