@@ -1,7 +1,7 @@
 # Phân Tích Kỹ Thuật: Milvus trong Hệ Thống RAG Benchmark
-**Author:** Trần Hữu Kim Thành (Person C — Milvus Specialist)
-**Phase:** Stage 3 — Benchmark & Analysis
-**Cập nhật:** 2026-05-07 (Smoke Test: corpus=1000, queries=50, MockEmbedder)
+**Author:** Trần Hữu Kim Thành (Person C — Milvus Specialist)  
+**Phase:** Stage 3 — Benchmark & Analysis  
+**Cập nhật:** 2026-05-11 (Smoke Test: corpus=1000, queries=50, MockEmbedder SHA-256 stable)
 
 ---
 
@@ -11,13 +11,14 @@
 
 Không như Qdrant hay Weaviate cho phép khai báo schema linh hoạt hoặc tự suy kiểu dữ liệu,
 **Milvus yêu cầu khai báo đầy đủ schema trước khi insert bất kỳ dữ liệu nào**.
-Trong project này, schema được định nghĩa gồm 5 trường:
+Trong project này, schema được định nghĩa gồm **6 trường**:
 
 | Field | Kiểu dữ liệu | Mô tả |
 |---|---|---|
 | `id` | `INT64` (primary, auto_id) | Khoá chính tự tăng |
 | `content` | `VARCHAR(65535)` | Nội dung text chunk |
 | `vector` | `FLOAT_VECTOR(768)` | Embedding nomic-embed-text |
+| `source` | `VARCHAR(1024)` | Tên file nguồn (PDF, URL...) |
 | `category` | `VARCHAR(256)` | Metadata để lọc Boolean |
 | `page` | `INT64` | Số trang để lọc range |
 
@@ -135,51 +136,62 @@ computation. Đây là điểm mạnh đáng chú ý của Milvus so với các 
 
 ### 3.1 Accuracy (Recall@K, MRR)
 
-*MockEmbedder — hash-based random vector, corpus=1000, queries=50*
+*MockEmbedder — SHA-256 stable hash, corpus=1000, queries=50*  
+*Nguồn: `recall.csv` (chạy 2026-05-07)*
 
 | Engine | Recall@1 | Recall@5 | Recall@10 | MRR | AvgLatency_ms | Errors |
 |---|---|---|---|---|---|---|
-| Milvus | 0.0% | 2.0% | 2.0% | 0.005 | 20.46 ms | 0 |
+| Milvus | 0.0% | 0.0% | 0.0% | 0.0000 | **6.34 ms** | 0 |
 
-> **Quan trọng:** Recall thấp là do MockEmbedder (vector ngẫu nhiên, không có quan hệ
-> ngữ nghĩa). Pipeline chạy đúng, 0 errors. Với Ollama embedder (nomic-embed-text),
+> **Quan trọng:** Recall = 0% là **hành vi đúng** với MockEmbedder.
+> MockEmbedder sinh vector ngẫu nhiên từ hash của text — một query substring (14 từ)
+> sẽ cho vector **hoàn toàn khác** với chunk gốc, không có quan hệ ngữ nghĩa.
+> Pipeline hoạt động đúng (0 errors). Với Ollama embedder (nomic-embed-text),
 > Recall@5 dự kiến đạt ≥80%.
 
+> **Định nghĩa AvgLatency:** Chỉ đo thời gian gọi `db.search()` (ANN query).
+> Không bao gồm embed, insert, flush, hay load. Xem mục 3.3 cho chi phí vận hành đầy đủ.
+
 **Phân tích:**
-- AvgLatency = **20.46 ms** bao gồm cả overhead embed + insert + flush + load trong Smoke Test
+- AvgLatency `search()` = **6.34 ms** — đây là thời gian thuần ANN query
 - 0 errors — Milvus hoạt động ổn định với corpus 1K
 - Collection lifecycle (insert→flush→load) hoạt động chính xác, Index Ready sau `connect()`
 
 ### 3.2 Recall vs Latency Tradeoff Sweep
 
-*6 điểm top_k, corpus=1000, queries=50, MockEmbedder*
+*6 điểm top_k, corpus=1000, queries=50, MockEmbedder*  
+*Nguồn: `tradeoff.csv` (chạy 2026-05-07)*
 
 | top_k | Recall (%) | AvgLatency_ms | Delta Latency |
 |---|---|---|---|
-| 1 | 0.0 | 5.16 | — |
-| 2 | 0.0 | 4.67 | −0.49 ms |
-| 5 | 2.0 | 5.32 | +0.65 ms |
-| 10 | 2.0 | 5.52 | +0.20 ms |
-| 20 | 2.0 | 5.36 | −0.16 ms |
-| 50 | 6.0 | 9.94 | **+4.42 ms** |
+| 1 | 0.0 | 6.86 | — |
+| 2 | 0.0 | 7.82 | +0.96 ms |
+| 5 | 0.0 | 10.67 | +2.85 ms |
+| 10 | 0.0 | 12.96 | +2.29 ms |
+| 20 | 0.0 | 8.25 | −4.71 ms |
+| 50 | 4.0 | 6.52 | −1.73 ms |
 
-**Nhận xét:** Latency ổn định trong khoảng 4.67–5.52 ms cho top_k từ 1–20.
-Tăng rõ rệt ở top_k=50 (+4.42 ms so với top_k=20). Sweet spot: **top_k=5**
-(recall 2% mock, latency 5.32 ms). Với real embedder, sweet spot vẫn là top_k=5.
+> **Lưu ý:** Recall = 0% ở tất cả top_k ≤ 20 là đúng với MockEmbedder (xem mục 3.1).
+> Recall tăng nhẹ lên 4% ở top_k=50 chỉ do may mắn ngẫu nhiên.
+
+**Nhận xét:** Latency tăng từ 6.86 ms (top_k=1) lên 12.96 ms (top_k=10), sau đó
+giảm nhẹ ở top_k=20 và 50. Điều này phản ánh behavior của HNSW: scan effort tăng
+theo k nhưng không tuyến tính. Sweet spot thực tế: **top_k=5** (latency 10.67 ms)
+cho balance tốt giữa recall và tốc độ khi dùng real embedder.
 
 ### 3.3 Chi Phí Vận Hành (Operations Cost)
 
-*Từ metrics.csv sau khi chạy Smoke Test*
+*Nguồn: `metrics.csv` (chạy 2026-05-07) — chỉ tính các entry ngày 2026-05-07*
 
-| Operation | Count | AvgLatency_ms | Ghi chú |
-|---|---|---|---|
-| `insert` | 11 lần | 1460.76 ms | Batch insert 1000 chunks (2 batches × 500) |
-| `flush` | 1 lần | 2529.87 ms | Persist buffer ra MinIO — **bước đắt nhất** |
-| `load` | 2 lần | 343.09 ms | Load HNSW index vào RAM (37–648 ms) |
-| `search` | 1033 calls | 6.88 ms | ANN vector search |
-| `search_hybrid` | 209 calls | 5.29 ms | Dense + expr filter |
+| Operation | Count | AvgLatency_ms | Min | Max | Ghi chú |
+|---|---|---|---|---|---|
+| `insert` | 2 lần | 2805.30 ms | 2785 | 2825 | Batch insert 1000 chunks (2 batches × 500) |
+| `flush` | 1 lần | 2529.87 ms | — | — | Persist buffer ra MinIO — **bước đắt nhất** |
+| `load` | 2 lần | 343.09 ms | 38 | 648 | Load HNSW index vào RAM |
+| `search` | 700 calls | 7.68 ms | 3.00 | 603.58 | ANN vector search (P95 outlier included) |
+| `search_hybrid` | 200 calls | 5.16 ms | 1.90 | 50.93 | Dense + expr filter |
 
-**Tổng chi phí khởi tạo 1 lần benchmark:** insert(1460) + flush(2529) + load(343) = **~4332 ms**.
+**Tổng chi phí khởi tạo 1 lần benchmark:** insert(2805) + flush(2530) + load(343) = **~5678 ms**.
 Đây là overhead của Milvus so với Qdrant (upsert → ready ngay, không cần flush/load).
 
 ---
@@ -203,13 +215,15 @@ Tăng rõ rệt ở top_k=50 (+4.42 ms so với top_k=20). Sweet spot: **top_k=5
 
 | Tiêu chí | Milvus | Qdrant |
 |---|---|---|
-| Recall@5 (mock) | 2.0% | N/A |
-| Search latency (avg) | 6.88 ms | N/A |
+| Recall@5 (mock) | 0.0% ¹ | N/A |
+| Search latency avg | 7.68 ms (`search`) | N/A |
 | RAM idle | ~398 MB | ~79 MB |
-| Khởi tạo (insert+flush+load) | ~4332 ms | ~insert only |
+| Khởi tạo (insert+flush+load) | ~5678 ms | ~insert only |
 | Filter syntax | SQL-like expr | JSON object |
 | Setup complexity | Cao (3 services) | Thấp (1 service) |
 | DX Score | 3/5 | 5/5 |
+
+¹ *Recall = 0% là đúng với MockEmbedder. Xem mục 3.1.*
 
 ---
 
@@ -217,23 +231,24 @@ Tăng rõ rệt ở top_k=50 (+4.42 ms so với top_k=20). Sweet spot: **top_k=5
 
 ### Nhận xét ngắn cho từng tab frontend:
 
-- **`/accuracy`**: Recall@5 của Milvus = **2.0% (mock)** — với Ollama embedder,
-  dự kiến đạt ≥80%; pipeline 0 errors, hoạt động ổn định.
+- **`/accuracy`**: Recall@5 của Milvus = **0.0% (mock)** — đây là hành vi đúng,
+  MockEmbedder sinh vector không liên quan ngữ nghĩa; pipeline 0 errors, hoạt động ổn định.
+  Với Ollama embedder (nomic-embed-text), dự kiến Recall@5 ≥80%.
+  AvgLatency `search()` = **6.34 ms** (chỉ đo ANN query, không bao gồm embed/insert/flush/load).
 
-- **`/latency`**: Search latency avg **6.88 ms** (search) và **5.29 ms** (search_hybrid).
-  Khởi tạo nặng: insert ~1460ms + flush ~2530ms + load ~343ms = **~4.3 giây tổng**.
+- **`/latency`**: Search latency avg **7.68 ms** (search) và **5.16 ms** (search_hybrid).
+  Khởi tạo nặng: insert ~2805ms + flush ~2530ms + load ~343ms = **~5.7 giây tổng**.
   Milvus chậm hơn Qdrant ở khởi tạo do overhead flush/load.
 
-- **`/tradeoff`**: Latency ổn định 4.67–5.52 ms cho top_k=1–20, tăng rõ rệt ở top_k=50
-  (+4.42 ms). Sweet spot: **top_k=5**. Curve phẳng hơn Qdrant do HNSW scan ít bị ảnh
-  hưởng bởi k nhỏ.
+- **`/tradeoff`**: Latency tăng từ 6.86 ms (top_k=1) lên 12.96 ms (top_k=10), sau đó
+  biến động nhẹ. Recall = 0% do MockEmbedder (xem mục 3.1). Sweet spot: **top_k=5**.
 
 - **`/hybrid`**: `expr` filter có latency **thấp hơn** dense-only baseline (6.68 ms):
   equality 5.24ms (−1.44ms), in_filter 4.77ms (−1.91ms). Pre-filter trong HNSW graph
   giúp giảm candidate trước khi tính distance. 0 errors trong 5 scenarios.
 
 - **`/dx-score`**: Milvus DX phức tạp (3 services, schema declare upfront,
-  insert→flush→load lifecycle, ~4.3s khởi tạo). Đổi lại: SQL-like expr filter,
+  insert→flush→load lifecycle, ~5.7s khởi tạo). Đổi lại: SQL-like expr filter,
   schema rõ ràng, tốt cho production scale. Recommend cho enterprise, không phải prototyping.
 
 ---
@@ -246,4 +261,5 @@ Tăng rõ rệt ở top_k=50 (+4.42 ms so với top_k=20). Sweet spot: **top_k=5
 | `src/core/benchmark/tradeoff.csv` | 6 điểm top_k cho Milvus (Recall vs Latency curve) |
 | `src/core/benchmark/metrics.csv` | insert(11), flush(1), load(2), search(1033), search_hybrid(209+) |
 
-*Benchmark chạy 2026-05-07 với MockEmbedder. Chạy lại khi Ollama sẵn sàng để có Recall chính xác.*
+*Benchmark chạy 2026-05-07 với MockEmbedder (SHA-256 stable hash từ 2026-05-11).  
+Recall = 0% là đúng với MockEmbedder. Chạy lại khi Ollama sẵn sàng để có Recall chính xác.*
