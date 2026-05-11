@@ -41,7 +41,7 @@ def run_tradeoff_sweep(
     average latency. Returns a long-format DataFrame ready to feed into a
     Plotly line chart (`x=AvgLatency_ms, y=Recall, color=Engine`).
     """
-    corpus, ids = build_corpus(size=corpus_size)
+    corpus, ids, metadata = build_corpus(size=corpus_size)
     pairs = build_golden_queries(corpus, ids, num_queries=num_queries)
     k_values = list(k_values)
 
@@ -50,7 +50,7 @@ def run_tradeoff_sweep(
             logger.info("[Tradeoff] Ingesting %d chunks into %s", len(corpus), name)
             try:
                 vectors = embedder.embed_documents(corpus)
-                db.insert(corpus, vectors)
+                db.insert(corpus, vectors, metadata=metadata)
             except Exception as exc:
                 logger.error("[Tradeoff] Ingestion failed on %s: %s", name, exc)
 
