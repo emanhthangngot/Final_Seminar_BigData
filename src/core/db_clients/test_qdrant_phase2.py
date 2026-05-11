@@ -69,7 +69,7 @@ def main():
     # Test 1: Batch insert 1K corpus
     # ==================================================================
     print("\n[Test 1] Batch Insert 1K Synthetic Corpus")
-    corpus, ids = build_corpus(size=CORPUS_SIZE)
+    corpus, ids = build_corpus(size=CORPUS_SIZE)[:2]
     t0 = time.perf_counter()
     vectors = embedder.embed_documents(corpus)
     embed_time = time.perf_counter() - t0

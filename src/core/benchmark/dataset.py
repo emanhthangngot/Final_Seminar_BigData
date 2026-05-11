@@ -25,7 +25,7 @@ from __future__ import annotations
 import random
 import re
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from src.config import (
     BENCH_CORPUS_SIZE,
@@ -54,6 +54,9 @@ _PROTOS = ["gRPC", "REST", "HTTP2", "Thrift"]
 _EMBED_MODELS = ["nomic-embed-text", "bge-small-en", "e5-large"]
 _LLMS = ["qwen2.5", "llama3", "mistral-7b"]
 _METRICS = ["cosine", "dot product", "Euclidean"]
+
+# Categories used for metadata — filter_benchmark.py references these.
+_CATEGORIES = ["tech", "science", "engineering", "research", "ops"]
 
 
 @dataclass
@@ -89,9 +92,11 @@ def _wrap_with_id(chunk_id: str, text: str) -> str:
     return f"[{chunk_id}] {text}"
 
 
-def build_corpus(size: int = None, seed: int = None) -> Tuple[List[str], List[str]]:
+def build_corpus(
+    size: int = None, seed: int = None,
+) -> Tuple[List[str], List[str], List[Dict[str, Any]]]:
     """
-    Build a deterministic synthetic corpus.
+    Build a deterministic synthetic corpus with metadata.
 
     Returns
     -------
@@ -99,6 +104,10 @@ def build_corpus(size: int = None, seed: int = None) -> Tuple[List[str], List[st
         Chunks ready to be embedded & inserted (each starts with the CID tag).
     ids : List[str]
         The chunk_id for each text, in the same order.
+    metadata : List[Dict[str, Any]]
+        Per-chunk metadata with keys: ``source``, ``category``, ``page``.
+        Deterministic based on seed — ensures filter_benchmark scenarios
+        can match data in the collection.
     """
     size = size or BENCH_CORPUS_SIZE
     seed = seed or BENCH_SEED
@@ -106,12 +115,18 @@ def build_corpus(size: int = None, seed: int = None) -> Tuple[List[str], List[st
 
     texts: List[str] = []
     ids: List[str] = []
+    metadata: List[Dict[str, Any]] = []
     for i in range(size):
         cid = _chunk_id_for(i)
         body = _make_chunk_text(rng, i)
         texts.append(_wrap_with_id(cid, body))
         ids.append(cid)
-    return texts, ids
+        metadata.append({
+            "source": f"bench_doc_{i // 50:04d}.pdf",
+            "category": _CATEGORIES[i % len(_CATEGORIES)],
+            "page": (i % 20) + 1,  # pages 1-20 cycling
+        })
+    return texts, ids, metadata
 
 
 def build_golden_queries(

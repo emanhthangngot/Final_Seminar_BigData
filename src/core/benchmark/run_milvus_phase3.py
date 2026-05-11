@@ -22,6 +22,7 @@ from __future__ import annotations
 import io
 import sys
 import time
+import hashlib
 from typing import List
 
 # Force UTF-8 output on Windows to avoid UnicodeEncodeError with special chars
@@ -41,16 +42,26 @@ from src.core.utils.logger import logger
 
 # ─── MockEmbedder ─────────────────────────────────────────────────────────────
 # Dùng khi Ollama chưa sẵn sàng (MOCK_MODE=true trong .env).
-# Embedding được sinh deterministically từ hash của text → đảm bảo
-# cùng text luôn cho cùng vector, Recall@K vẫn có ý nghĩa thống kê.
+# Embedding được sinh deterministically từ SHA-256 hash + seed → đảm bảo
+# cùng text luôn cho cùng vector GIỮA CÁC LẦN CHẠY (reproducible benchmark).
 class MockEmbedder:
-    """Deterministic mock embedder — không cần Ollama."""
+    """Deterministic mock embedder — không cần Ollama.
+
+    Uses hashlib.sha256 (not built-in hash()) to ensure vectors are
+    identical across Python sessions regardless of PYTHONHASHSEED.
+    """
 
     def __init__(self, seed: int = BENCH_SEED):
         self._seed = seed
 
+    def _stable_seed(self, text: str) -> int:
+        """Generate a stable, deterministic integer seed from text + self._seed."""
+        payload = f"{self._seed}:{text}".encode("utf-8")
+        digest = hashlib.sha256(payload).hexdigest()
+        return int(digest[:8], 16)  # first 8 hex chars → 32-bit seed
+
     def embed_query(self, text: str) -> List[float]:
-        rng = np.random.default_rng(abs(hash(text)) % (2**31))
+        rng = np.random.default_rng(self._stable_seed(text))
         v = rng.random(VECTOR_DIM).astype("float32")
         norm = np.linalg.norm(v)
         return (v / norm if norm > 0 else v).tolist()

@@ -113,7 +113,7 @@ def run_accuracy_benchmark(
     pd.DataFrame
         One row per engine with Recall@K / MRR / AvgLatency / Errors.
     """
-    corpus, ids = build_corpus(size=corpus_size)
+    corpus, ids, metadata = build_corpus(size=corpus_size)
     pairs = build_golden_queries(corpus, ids, num_queries=num_queries)
     logger.info(
         "[Evaluator] corpus=%d chunks, queries=%d, engines=%s",
@@ -131,7 +131,7 @@ def run_accuracy_benchmark(
                 progress_callback(step, total_steps, f"[{name}] Embedding & ingesting {len(corpus)} chunks")
             try:
                 vectors = embedder.embed_documents(corpus)
-                db.insert(corpus, vectors)
+                db.insert(corpus, vectors, metadata=metadata)
             except Exception as exc:
                 logger.error("[Evaluator] Ingestion failed on %s: %s", name, exc)
                 results.append({
