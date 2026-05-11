@@ -175,22 +175,35 @@ def main() -> int:
     db.connect()
     embedder = Embedder()
 
-    summary: Dict[str, Any] = {
-        "meta": {
-            "mode": args.mode,
+    scenarios = []
+    scenario_meta: Dict[str, Dict[str, int]] = {}
+    if args.mode in ("smoke", "both"):
+        scenarios.append(("smoke", 1000, 50))
+        scenario_meta["smoke"] = {
+            "bench_corpus_size": 1000,
+            "bench_num_queries": 50,
+        }
+    if args.mode in ("final", "both"):
+        scenarios.append(("final", BENCH_CORPUS_SIZE, BENCH_NUM_QUERIES))
+        scenario_meta["final"] = {
             "bench_corpus_size": BENCH_CORPUS_SIZE,
             "bench_num_queries": BENCH_NUM_QUERIES,
-            "hybrid_alphas": HYBRID_ALPHAS,
-        },
+        }
+
+    meta: Dict[str, Any] = {
+        "mode": args.mode,
+        "hybrid_alphas": HYBRID_ALPHAS,
+        "benchmarks": scenario_meta,
+    }
+    if args.mode != "both":
+        meta["bench_corpus_size"] = scenario_meta[args.mode]["bench_corpus_size"]
+        meta["bench_num_queries"] = scenario_meta[args.mode]["bench_num_queries"]
+
+    summary: Dict[str, Any] = {
+        "meta": meta,
         "scenarios": {},
         "hybrid": None,
     }
-
-    scenarios = []
-    if args.mode in ("smoke", "both"):
-        scenarios.append(("smoke", 1000, 50))
-    if args.mode in ("final", "both"):
-        scenarios.append(("final", BENCH_CORPUS_SIZE, BENCH_NUM_QUERIES))
 
     for name, corpus_size, num_queries in scenarios:
         summary["scenarios"][name] = _run_scenario(db, embedder, name, corpus_size, num_queries)
