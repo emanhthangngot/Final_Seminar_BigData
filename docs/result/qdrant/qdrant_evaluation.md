@@ -187,4 +187,4 @@ Qdrant dẫn đầu tuyệt đối trên mọi chỉ số DX:
 
 ---
 
-> **Ghi chú:** Toàn bộ kết quả được tái tạo bằng cách chạy `python -m src.core.benchmark.run_qdrant_phase3` với seed cố định (`BENCH_SEED=42`). Đảm bảo tính reproducibility cho việc kiểm chứng sau này.
+> **Ghi chú:** Toàn bộ kết quả được tái tạo bằng cách chạy `python -m src.core.benchmark.qdrant.run_qdrant_phase3` với seed cố định (`BENCH_SEED=42`). Đảm bảo tính reproducibility cho việc kiểm chứng sau này.

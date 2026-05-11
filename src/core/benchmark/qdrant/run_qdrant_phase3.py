@@ -2,7 +2,7 @@
 Qdrant Phase 3 - All-in-One Benchmark Runner
 Owner: Person D
 
-Usage: python -m src.core.benchmark.run_qdrant_phase3
+Usage: python -m src.core.benchmark.qdrant.run_qdrant_phase3
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from src.core.data_ingestion.embedder import Embedder
 from src.core.benchmark.evaluator import run_accuracy_benchmark
 from src.core.benchmark.tradeoff import run_tradeoff_sweep
 from src.core.benchmark.dataset import build_corpus
-from src.core.benchmark.filter_benchmark_qdrant import run_filter_benchmark, print_filter_report
+from src.core.benchmark.qdrant.filter_benchmark_qdrant import run_filter_benchmark, print_filter_report
 from src.core.benchmark.resource_monitor import get_container_stats
 from src.core.utils.dx_analyzer import analyze_dx
 from src.core.utils.logger import logger
