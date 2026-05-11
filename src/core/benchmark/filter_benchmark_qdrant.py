@@ -127,7 +127,7 @@ def run_filter_benchmark(
             avg_ms = min_ms = max_ms = 0.0
 
         # Ghi vào metrics.csv qua profiler.log_metrics (thread-safe)
-        operation_key = f"search_hybrid_{name}"
+        operation_key = f"search_{name}" if not filters else f"search_hybrid_{name}"
         log_metrics("Qdrant", operation_key, avg_ms)
 
         rows.append(
