@@ -104,7 +104,7 @@ def main():
     logger.info("[Phase3] Re-ingested %d chunks with metadata.", len(corpus))
 
     df_filter = run_filter_benchmark(
-        qdrant_wrapper=qdrant, embedder=embedder,
+        qdrant_wrapper=qdrant,
         num_queries=FILTER_NUM_QUERIES,
     )
     print(f"\n  >> Done in {time.perf_counter() - t0:.1f}s")

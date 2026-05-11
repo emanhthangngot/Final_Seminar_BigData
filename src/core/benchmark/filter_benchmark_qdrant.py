@@ -61,7 +61,6 @@ def _generate_query_vectors(num_queries: int, seed: int = BENCH_SEED) -> List[Li
 
 def run_filter_benchmark(
     qdrant_wrapper,
-    embedder,
     num_queries: int = 20,
     top_k: int = 5,
 ) -> pd.DataFrame:
@@ -182,10 +181,9 @@ def print_filter_report(df: pd.DataFrame) -> None:
 
 if __name__ == "__main__":
     from src.core.db_clients.qdrant import QdrantWrapper
-    from src.core.data_ingestion.embedder import Embedder
-    
+
     q = QdrantWrapper()
     q.connect()
-    
-    df_result = run_filter_benchmark(q, Embedder(), num_queries=20)
+
+    df_result = run_filter_benchmark(q, num_queries=20)
     print_filter_report(df_result)

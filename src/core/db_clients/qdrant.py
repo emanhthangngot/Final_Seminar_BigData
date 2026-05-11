@@ -24,6 +24,7 @@ from src.core.db_clients.base import BaseVectorDB
 from src.config import (
     QDRANT_HOST,
     QDRANT_GRPC_PORT,
+    QDRANT_HTTP_PORT,
     VECTOR_DIM,
     INDEX_PARAMS,  # <-- canonical HNSW params shared with Weaviate & Milvus
 )
@@ -32,6 +33,26 @@ from src.core.utils.logger import logger
 
 
 COLLECTION_NAME = "SeminarKnowledge_Base"
+
+
+# ── Distance metric mapping (Fairness Protocol) ─────────────────────
+_DISTANCE_MAP = {
+    "COSINE": models.Distance.COSINE,
+    "EUCLID": models.Distance.EUCLID,
+    "DOT": models.Distance.DOT,
+}
+
+
+def _resolve_distance_metric() -> models.Distance:
+    """Map INDEX_PARAMS['metric'] string to Qdrant Distance enum."""
+    key = str(INDEX_PARAMS.get("metric", "COSINE")).upper()
+    dist = _DISTANCE_MAP.get(key)
+    if dist is None:
+        logger.warning(
+            "[Qdrant] Unsupported metric '%s'; defaulting to COSINE.", key
+        )
+        return models.Distance.COSINE
+    return dist
 
 
 class QdrantWrapper(BaseVectorDB):
@@ -53,8 +74,9 @@ class QdrantWrapper(BaseVectorDB):
         if self.client is None:
             self.client = QdrantClient(
                 host=QDRANT_HOST,
+                port=QDRANT_HTTP_PORT,
                 grpc_port=QDRANT_GRPC_PORT,
-                prefer_grpc=True
+                prefer_grpc=True,
             )
             self.collection_name = COLLECTION_NAME
 
@@ -64,7 +86,7 @@ class QdrantWrapper(BaseVectorDB):
             collection_name=self.collection_name,
             vectors_config=models.VectorParams(
                 size=VECTOR_DIM,
-                distance=models.Distance.COSINE,
+                distance=_resolve_distance_metric(),
             ),
             # ========== FAIRNESS PROTOCOL ==========
             hnsw_config=models.HnswConfigDiff(
