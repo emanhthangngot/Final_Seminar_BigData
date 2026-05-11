@@ -13,9 +13,11 @@ pypdf>=4.1.0
 # Database Clients
 qdrant-client>=1.8.0
 weaviate-client>=4.5.3
-pymilvus>=2.3.6
+# pymilvus>=2.4.0 required for AnnSearchRequest + RRFRanker (hybrid search)
+pymilvus>=2.4.0
 
 # Data & Utils
+numpy>=1.26.0          # Used by MockEmbedder and filter_benchmark.py
 pandas>=2.2.1
 python-dotenv>=1.0.1
 docker>=7.0.0
