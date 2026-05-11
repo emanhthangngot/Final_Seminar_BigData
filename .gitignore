@@ -35,7 +35,6 @@ volumes/
 
 # Application Logs & Benchmarks
 logs/
-metrics.csv
 
 # IDEs
 .idea/
