@@ -23,7 +23,14 @@ class BaseVectorDB(ABC):
         pass
 
     @abstractmethod
-    def search_hybrid(self, query_text: str, query_embedding: List[float], filters: Dict[str, Any] = None, top_k: int = 5) -> List[str]:
+    def search_hybrid(
+        self,
+        query_text: str,
+        query_embedding: List[float],
+        filters: Dict[str, Any] = None,
+        top_k: int = 5,
+        alpha: float | None = None,
+    ) -> List[str]:
         """Search using a combination of dense vectors and optional metadata filtering or sparse search."""
         pass
         

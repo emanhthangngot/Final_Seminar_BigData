@@ -21,6 +21,7 @@ class HybridBenchmarkRequest(BaseModel):
     query: str
     filters: Optional[dict] = None
     top_k: int = Field(default=5, ge=1, le=50)
+    alpha: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
 
 class AccuracyResult(BaseModel):
