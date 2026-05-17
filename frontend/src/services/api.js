@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const http = axios.create({ baseURL: '/api/v1', timeout: 120_000 })
+const http = axios.create({ baseURL: '/api/v1', timeout: 300_000 })
 
 http.interceptors.response.use(
   (r) => r.data,
@@ -51,6 +51,11 @@ export const api = {
     form.append('db', db)
     return http.post('/ingest', form, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
+  ingestDocumentAll: (file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return http.post('/ingest/all', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  },
 
   // Benchmark
   getLatestAccuracyBenchmark: () =>
@@ -79,6 +84,7 @@ export const api = {
 
   // RAG Chat
   chat: (query, db) => http.post('/chat', { query, db }),
+  compareChat: (query, topK = 5) => http.post('/chat/compare', { query, top_k: topK }),
 
   // Resources
   getResources: () => http.get('/resources'),

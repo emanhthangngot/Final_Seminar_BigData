@@ -18,13 +18,12 @@ DATA_DIR.mkdir(exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Mock Mode
-# When True, the system returns deterministic mock embeddings and LLM
-# responses instead of calling a live Ollama instance.  This allows full
-# end-to-end testing of the UI, ingestion pipeline, and benchmark dashboard
-# without any external model dependency.
-# Set to False (or override via .env) once Ollama is running.
+# When True, the system returns deterministic mock embeddings and synthetic
+# responses instead of calling a live Ollama instance. The application defaults
+# to real mode for the seminar RAG chat; enable mock mode explicitly only for
+# offline demos/tests.
 # ---------------------------------------------------------------------------
-MOCK_MODE = os.getenv("MOCK_MODE", "true").lower() in ("true", "1", "yes")
+MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() in ("true", "1", "yes")
 
 # ---------------------------------------------------------------------------
 # Vector Database Configurations
@@ -46,9 +45,9 @@ MILVUS_PORT = int(os.getenv("MILVUS_PORT", 19530))
 # ---------------------------------------------------------------------------
 # Ollama (LLM & Embeddings)
 # ---------------------------------------------------------------------------
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL") or os.getenv("OLLAMA_HOST", "http://localhost:11434")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
-LLM_MODEL = os.getenv("LLM_MODEL", "qwen:3.6")
+LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5:3b")
 
 # ---------------------------------------------------------------------------
 # RAG Settings

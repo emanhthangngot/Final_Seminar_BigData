@@ -36,5 +36,49 @@ class IngestService:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
+    async def ingest_pdf_all(self, file_bytes: bytes, filename: str) -> dict:
+        engines = db_service.all()
+        if not engines:
+            raise ValueError("No databases are connected.")
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(file_bytes)
+            tmp_path = tmp.name
+
+        try:
+            started = time.perf_counter()
+            chunks = load_and_chunk_pdf(tmp_path)
+            embeddings = self.embedder.embed_documents(chunks)
+            parse_embed_ms = (time.perf_counter() - started) * 1000
+
+            results: dict[str, dict] = {}
+            for db_name, engine in engines.items():
+                db_started = time.perf_counter()
+                try:
+                    engine.insert(chunks, embeddings)
+                    results[db_name] = {
+                        "status": "success",
+                        "chunks": len(chunks),
+                        "ingest_ms": round((time.perf_counter() - db_started) * 1000, 2),
+                        "error": None,
+                    }
+                except Exception as exc:
+                    results[db_name] = {
+                        "status": "error",
+                        "chunks": 0,
+                        "ingest_ms": round((time.perf_counter() - db_started) * 1000, 2),
+                        "error": str(exc),
+                    }
+
+            return {
+                "filename": filename,
+                "chunks": len(chunks),
+                "parse_embed_ms": round(parse_embed_ms, 2),
+                "results": results,
+            }
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
 
 ingest_service = IngestService()

@@ -15,7 +15,7 @@ from src.core.utils.logger import logger
 
 
 class LLMGenerator:
-    """Unified LLM generation interface with automatic mock fallback."""
+    """Unified LLM generation interface for Ollama or explicit mock mode."""
 
     # The system prompt instructs the LLM to be a domain-specific assistant.
     SYSTEM_PROMPT = textwrap.dedent("""\
@@ -45,10 +45,12 @@ class LLMGenerator:
                     OLLAMA_BASE_URL, LLM_MODEL,
                 )
             except Exception as exc:
-                logger.warning(
-                    "[LLMGenerator] Failed to initialise Ollama LLM (%s). "
-                    "Falling back to mock responses.", exc
+                message = (
+                    f"[LLMGenerator] Failed to initialise Ollama LLM at "
+                    f"{OLLAMA_BASE_URL} with model {LLM_MODEL}: {exc}"
                 )
+                logger.error(message)
+                raise RuntimeError(message) from exc
 
     # ------------------------------------------------------------------
     # Mock response
@@ -128,7 +130,8 @@ answers grounded in the retrieved context.
                 logger.info("[LLMGenerator] Live response generated via %s", LLM_MODEL)
                 return answer
             except Exception as exc:
-                logger.error("[LLMGenerator] Live generation failed: %s", exc)
-                return self._mock_response(query, context_chunks)
+                message = f"[LLMGenerator] Live generation failed via {LLM_MODEL}: {exc}"
+                logger.error(message)
+                raise RuntimeError(message) from exc
         else:
             return self._mock_response(query, context_chunks)

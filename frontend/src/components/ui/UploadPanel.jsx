@@ -5,11 +5,11 @@ import { Upload, FileText, X, CheckCircle, Database, Layers3 } from 'lucide-reac
 import { useMutation } from '@tanstack/react-query'
 import { api } from '../../services/api'
 
-export default function UploadPanel({ selectedDB, onSuccess }) {
+export default function UploadPanel({ selectedDB, onSuccess, compareMode = false }) {
   const [file, setFile] = useState(null)
 
   const { mutate, isPending, isSuccess, isError, error, reset } = useMutation({
-    mutationFn: ({ file, db }) => api.ingestDocument(file, db),
+    mutationFn: ({ file, db, all }) => all ? api.ingestDocumentAll(file) : api.ingestDocument(file, db),
     onSuccess: (data) => {
       onSuccess?.(data)
       setTimeout(() => { setFile(null); reset() }, 3000)
@@ -29,7 +29,7 @@ export default function UploadPanel({ selectedDB, onSuccess }) {
       <div className="relative z-10 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Data Ingestion</p>
-          <p className="mt-1 text-xs text-slate-500">PDF to chunks to embeddings</p>
+          <p className="mt-1 text-xs text-slate-500">{compareMode ? 'sync one PDF to all engines' : 'PDF to chunks to embeddings'}</p>
         </div>
         <Database size={18} className="text-cyan" />
       </div>
@@ -80,17 +80,19 @@ export default function UploadPanel({ selectedDB, onSuccess }) {
         <p className="text-xs text-qdrant">{error?.message ?? 'Ingestion failed'}</p>
       )}
       {isSuccess && (
-        <p className="relative z-10 text-xs text-milvus flex items-center gap-1">
-          <CheckCircle size={12} /> Ingested successfully
-        </p>
+        <div className="relative z-10 space-y-2">
+          <p className="text-xs text-milvus flex items-center gap-1">
+            <CheckCircle size={12} /> Ingested successfully
+          </p>
+        </div>
       )}
 
       <button
         className="btn-primary relative z-10 w-full text-sm py-2"
         disabled={!file || isPending || !selectedDB}
-        onClick={() => mutate({ file, db: selectedDB })}
+        onClick={() => mutate({ file, db: selectedDB, all: compareMode })}
       >
-        {isPending ? 'Processing...' : `Ingest into ${selectedDB ?? '—'}`}
+        {isPending ? 'Processing...' : compareMode ? 'Ingest into all 3 DBs' : `Ingest into ${selectedDB ?? '—'}`}
       </button>
     </div>
   )

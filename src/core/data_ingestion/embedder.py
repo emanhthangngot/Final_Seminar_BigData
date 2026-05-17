@@ -15,7 +15,7 @@ from src.core.utils.logger import logger
 
 
 class Embedder:
-    """Unified embedding interface with automatic mock fallback."""
+    """Unified embedding interface for Ollama or explicit mock mode."""
 
     def __init__(self):
         self._live_embeddings = None
@@ -37,10 +37,12 @@ class Embedder:
                     OLLAMA_BASE_URL, EMBEDDING_MODEL,
                 )
             except Exception as exc:
-                logger.warning(
-                    "[Embedder] Failed to initialise OllamaEmbeddings (%s). "
-                    "Falling back to mock vectors.", exc
+                message = (
+                    f"[Embedder] Failed to initialise OllamaEmbeddings at "
+                    f"{OLLAMA_BASE_URL} with model {EMBEDDING_MODEL}: {exc}"
                 )
+                logger.error(message)
+                raise RuntimeError(message) from exc
 
     # ------------------------------------------------------------------
     # Mock helpers
@@ -60,10 +62,10 @@ class Embedder:
     # ------------------------------------------------------------------
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """Batch-embed a list of text chunks."""
-        if self._live_embeddings is not None:
-            vectors = self._live_embeddings.embed_documents(texts)
-        else:
+        if MOCK_MODE:
             vectors = [self._deterministic_vector(t) for t in texts]
+        else:
+            vectors = self._live_embeddings.embed_documents(texts)
 
         # Validate dimension
         for v in vectors:
@@ -74,10 +76,10 @@ class Embedder:
 
     def embed_query(self, text: str) -> List[float]:
         """Embed a single query string."""
-        if self._live_embeddings is not None:
-            vector = self._live_embeddings.embed_query(text)
-        else:
+        if MOCK_MODE:
             vector = self._deterministic_vector(text)
+        else:
+            vector = self._live_embeddings.embed_query(text)
 
         assert len(vector) == VECTOR_DIM, (
             f"Dimension mismatch: expected {VECTOR_DIM}, got {len(vector)}"

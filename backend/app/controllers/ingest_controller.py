@@ -14,3 +14,15 @@ class IngestController:
             raise HTTPException(status_code=404, detail=str(exc))
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
+
+    @staticmethod
+    async def ingest_all(file: UploadFile) -> dict:
+        if not file.filename.endswith(".pdf"):
+            raise HTTPException(status_code=422, detail="Only PDF files are supported.")
+        try:
+            content = await file.read()
+            return await ingest_service.ingest_pdf_all(content, file.filename)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
