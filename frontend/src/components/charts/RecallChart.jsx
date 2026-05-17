@@ -3,6 +3,7 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar,
   ResponsiveContainer
 } from 'recharts'
+import { recallPercentDomain } from '../../utils/benchmarkInsights'
 
 const DB_FILL = { Qdrant: '#EF4444', Weaviate: '#3B82F6', Milvus: '#10B981' }
 
@@ -28,6 +29,7 @@ export function RecallBarChart({ data }) {
     { k: 'Recall@5', ...Object.fromEntries(data.map((r) => [r.Engine, r['Recall@5']])) },
     { k: 'Recall@10', ...Object.fromEntries(data.map((r) => [r.Engine, r['Recall@10']])) },
   ]
+  const recallDomain = recallPercentDomain(data.flatMap((r) => [r['Recall@1'], r['Recall@5'], r['Recall@10']]))
 
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -42,7 +44,7 @@ export function RecallBarChart({ data }) {
         </defs>
         <CartesianGrid strokeDasharray="2 10" stroke="rgba(148,163,255,0.08)" vertical={false} />
         <XAxis dataKey="k" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} domain={[0, 1]} />
+        <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} domain={recallDomain} />
         <Tooltip content={<CustomTooltip />} />
         <Legend wrapperStyle={{ fontSize: 12, color: '#CBD5E1' }} />
         {Object.keys(DB_FILL).map((db) => (

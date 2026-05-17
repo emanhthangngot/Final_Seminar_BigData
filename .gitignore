@@ -53,3 +53,5 @@ frontend/.vite/
 
 # Backend
 backend/__pycache__/
+.agents/
+screenshot/

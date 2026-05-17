@@ -4,6 +4,12 @@ import { motion } from 'framer-motion'
 import MetricCard from '../components/ui/MetricCard'
 import DBBadge from '../components/ui/DBBadge'
 import { api } from '../services/api'
+import {
+  activeEngineCount,
+  dashboardRecommendation,
+  formatLatency,
+  latencySummaryByDb,
+} from '../utils/benchmarkInsights'
 import { Activity, BrainCircuit, Gauge, Network, Sparkles } from 'lucide-react'
 
 const VectorSpaceScene = lazy(() => import('../components/three/VectorSpaceScene'))
@@ -14,16 +20,20 @@ const FADE_UP = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }
 export default function Dashboard() {
   const { data: health } = useQuery({ queryKey: ['health'], queryFn: api.getHealth, refetchInterval: 10_000 })
   const { data: metrics } = useQuery({ queryKey: ['metrics'], queryFn: api.getMetrics, refetchInterval: 30_000 })
+  const { data: accuracyResults } = useQuery({
+    queryKey: ['benchmark', 'accuracy', 'latest'],
+    queryFn: api.getLatestAccuracyBenchmark,
+    staleTime: 60_000,
+  })
 
   const dbs = ['Qdrant', 'Weaviate', 'Milvus']
-  const avgLatency = (db) => {
-    if (!metrics?.length) return '—'
-    const rows = metrics.filter((r) => r.Engine === db && r.Operation === 'search')
-    if (!rows.length) return '—'
-    return (rows.reduce((a, r) => a + r.Duration_ms, 0) / rows.length).toFixed(1)
-  }
+  const latencyByDb = latencySummaryByDb({ accuracyResults, metrics, dbs })
+  const avgLatency = (db) => formatLatency(latencyByDb[db])
+  const onlineEngines = activeEngineCount(health, dbs)
+  const activeEngineDisplay = health?.databases ? String(onlineEngines) : String(dbs.length)
+  const recommendation = dashboardRecommendation({ accuracyResults, metrics }, dbs)
   const globeMetrics = Object.fromEntries(dbs.map((db) => {
-    const value = Number(avgLatency(db))
+    const value = latencyByDb[db]
     return [db, Number.isFinite(value) ? Math.max(0.15, Math.min(1, 1 - value / 100)) : 0.45]
   }))
 
@@ -42,7 +52,7 @@ export default function Dashboard() {
         </div>
         <div className="relative z-10 grid grid-cols-2 gap-3">
           {[
-            ['Active engines', '3', Network],
+            ['Active engines', activeEngineDisplay, Network],
             ['Sync cadence', '10s', Activity],
             ['AI confidence', '94%', BrainCircuit],
             ['SLO drift', 'low', Gauge],
@@ -84,7 +94,7 @@ export default function Dashboard() {
           </div>
           <div className="absolute bottom-5 left-5 right-5 z-10 rounded-2xl border border-white/10 bg-white/[0.055] p-4 backdrop-blur-xl">
             <div className="mb-3 flex items-center gap-2 text-sm text-slate-300"><Sparkles size={15} className="text-cyan" /> AI recommendation</div>
-            <p className="text-sm leading-5 text-slate-400">Milvus shows the strongest current efficiency signal; compare p95 drift before production routing.</p>
+            <p className="text-sm leading-5 text-slate-400">{recommendation}</p>
           </div>
         </div>
       </motion.div>

@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import TradeoffCurve from '../components/charts/TradeoffCurve'
 import { useBenchmarkStore } from '../store/benchmarkStore'
 import { api } from '../services/api'
+import { tradeoffConclusion } from '../utils/benchmarkInsights'
 import { BrainCircuit, Crosshair, Play, Sparkles } from 'lucide-react'
 
 export default function TradeoffPage() {
@@ -26,6 +27,7 @@ export default function TradeoffPage() {
     mutationFn: () => api.runTradeoffSweep(ingest),
     onSuccess: setTradeoffResults,
   })
+  const conclusion = tradeoffConclusion(tradeoffResults)
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
@@ -80,7 +82,7 @@ export default function TradeoffPage() {
           <div>
             <h3 className="text-sm font-semibold text-white">AI-generated conclusion</h3>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Prefer the point that preserves recall above 90% while minimizing p95 movement. If frontier curves overlap, route by operational maturity and SDK ergonomics.
+              {conclusion}
             </p>
           </div>
         </div>

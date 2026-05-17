@@ -2,6 +2,7 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, LabelList
 } from 'recharts'
+import { recallPercentDomain } from '../../utils/benchmarkInsights'
 
 const DB_COLORS = { Qdrant: '#EF4444', Weaviate: '#3B82F6', Milvus: '#10B981' }
 
@@ -32,6 +33,7 @@ export default function TradeoffCurve({ data }) {
     color,
     points: data.filter((r) => r.Engine === db).sort((a, b) => a.AvgLatency_ms - b.AvgLatency_ms),
   }))
+  const recallDomain = recallPercentDomain(data.map((row) => row.Recall))
 
   return (
     <div>
@@ -47,7 +49,7 @@ export default function TradeoffCurve({ data }) {
             label={{ value: 'Avg Latency (ms)', position: 'insideBottomRight', offset: -4, fill: '#64748B', fontSize: 10 }}
           />
           <YAxis
-            type="number" dataKey="Recall" name="Recall" domain={[0, 1]}
+            type="number" dataKey="Recall" name="Recall" domain={recallDomain}
             tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false}
             tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
           />
