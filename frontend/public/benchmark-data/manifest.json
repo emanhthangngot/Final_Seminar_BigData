@@ -1,0 +1,10 @@
+{
+  "source": "src/core/benchmark",
+  "synced_at": "2026-05-17",
+  "databases": ["Milvus", "Qdrant", "Weaviate"],
+  "files": {
+    "metrics": "/benchmark-data/combined/metrics.csv",
+    "recall": "/benchmark-data/combined/recall.csv",
+    "tradeoff": "/benchmark-data/combined/tradeoff.csv"
+  }
+}

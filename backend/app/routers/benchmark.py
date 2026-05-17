@@ -7,6 +7,16 @@ from app.models.benchmark import (
 router = APIRouter()
 
 
+@router.get("/benchmark/accuracy/latest")
+def get_latest_accuracy():
+    return BenchmarkController.latest_accuracy()
+
+
+@router.get("/benchmark/tradeoff/latest")
+def get_latest_tradeoff():
+    return BenchmarkController.latest_tradeoff()
+
+
 @router.post("/benchmark/accuracy")
 def run_accuracy(req: AccuracyBenchmarkRequest):
     return BenchmarkController.accuracy(req)

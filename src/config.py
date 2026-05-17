@@ -93,6 +93,7 @@ CHUNK_ID_PREFIX = "CID"  # every synthetic chunk starts with [CID:xxxx] for grou
 # Benchmarking
 # ---------------------------------------------------------------------------
 BENCHMARK_DIR = SRC_DIR / "core" / "benchmark"
+FRONTEND_BENCHMARK_DATA_DIR = BASE_DIR / "frontend" / "public" / "benchmark-data"
 METRICS_FILE = BENCHMARK_DIR / "metrics.csv"
 TRADEOFF_FILE = BENCHMARK_DIR / "tradeoff.csv"
 RECALL_FILE = BENCHMARK_DIR / "recall.csv"

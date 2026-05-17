@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { RecallBarChart, MRRRadarChart } from '../components/charts/RecallChart'
 import { useBenchmarkStore } from '../store/benchmarkStore'
 import { api } from '../services/api'
@@ -11,6 +11,18 @@ export default function AccuracyPage() {
   const [corpusSize, setCorpusSize] = useState(1000)
   const [numQueries, setNumQueries] = useState(50)
   const [ingest, setIngest] = useState(true)
+
+  const { data: latestAccuracy = [] } = useQuery({
+    queryKey: ['benchmark', 'accuracy', 'latest'],
+    queryFn: api.getLatestAccuracyBenchmark,
+    enabled: accuracyResults.length === 0,
+  })
+
+  useEffect(() => {
+    if (!accuracyResults.length && latestAccuracy.length) {
+      setAccuracyResults(latestAccuracy)
+    }
+  }, [accuracyResults.length, latestAccuracy, setAccuracyResults])
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => api.runAccuracyBenchmark(corpusSize, numQueries, ingest),
@@ -71,7 +83,7 @@ export default function AccuracyPage() {
       {!accuracyResults.length && (
         <div className="card p-5">
           <div className="relative z-10 flex h-[240px] items-center justify-center text-sm text-slate-400">
-            Run the benchmark to generate Recall@1/5/10, MRR, latency, and error comparisons.
+            Loading synced benchmark data. Run the benchmark to refresh Recall@1/5/10, MRR, latency, and error comparisons.
           </div>
         </div>
       )}

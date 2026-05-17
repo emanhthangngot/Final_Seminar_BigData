@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import TradeoffCurve from '../components/charts/TradeoffCurve'
 import { useBenchmarkStore } from '../store/benchmarkStore'
 import { api } from '../services/api'
@@ -9,6 +9,18 @@ import { BrainCircuit, Crosshair, Play, Sparkles } from 'lucide-react'
 export default function TradeoffPage() {
   const { tradeoffResults, setTradeoffResults } = useBenchmarkStore()
   const [ingest, setIngest] = useState(false)
+
+  const { data: latestTradeoff = [] } = useQuery({
+    queryKey: ['benchmark', 'tradeoff', 'latest'],
+    queryFn: api.getLatestTradeoffSweep,
+    enabled: tradeoffResults.length === 0,
+  })
+
+  useEffect(() => {
+    if (!tradeoffResults.length && latestTradeoff.length) {
+      setTradeoffResults(latestTradeoff)
+    }
+  }, [latestTradeoff, setTradeoffResults, tradeoffResults.length])
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => api.runTradeoffSweep(ingest),

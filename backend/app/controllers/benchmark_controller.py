@@ -7,6 +7,14 @@ from app.services.benchmark_service import benchmark_service
 
 class BenchmarkController:
     @staticmethod
+    def latest_accuracy() -> list[dict]:
+        return benchmark_service.get_latest_accuracy()
+
+    @staticmethod
+    def latest_tradeoff() -> list[dict]:
+        return benchmark_service.get_latest_tradeoff()
+
+    @staticmethod
     def accuracy(req: AccuracyBenchmarkRequest) -> list[dict]:
         try:
             return benchmark_service.run_accuracy(req.corpus_size, req.num_queries, req.ingest)

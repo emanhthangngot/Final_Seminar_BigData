@@ -111,9 +111,9 @@ Thư mục chính:
 | Thành phần | Yêu cầu |
 | :- | :- |
 | Docker | Docker 24+ |
-| Docker Compose | Compose V2 |
+| Docker Compose | Compose V2 plugin (`docker compose`) hoặc standalone binary tương thích |
 | RAM | Tối thiểu 8 GB, khuyến nghị 12 GB nếu chạy đủ 3 DB + Ollama |
-| Disk trống | Khuyến nghị còn ít nhất 10 GB |
+| Disk trống | Khuyến nghị còn ít nhất 25 GB cho lần chạy đầu vì cần pull Milvus, Ollama image và model Ollama |
 | Python local | 3.11 nếu chạy development mode ngoài Docker |
 | Node.js local | 20 LTS nếu chạy frontend development mode |
 
@@ -129,6 +129,20 @@ Từ thư mục root của dự án:
 
 ```bash
 docker compose up -d
+```
+
+Nếu máy chỉ có Docker Engine nhưng thiếu Compose V2 plugin, kiểm tra nhanh:
+
+```bash
+docker compose version
+```
+
+Trong trường hợp cần dùng standalone binary tạm thời, tải binary phù hợp từ Docker Compose release, cấp quyền execute rồi chạy thay cho `docker compose`. Ví dụ Linux x86_64:
+
+```bash
+curl -L https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64 -o /tmp/docker-compose
+chmod +x /tmp/docker-compose
+/tmp/docker-compose up -d
 ```
 
 Nếu lệnh Docker bị treo khi kết nối Docker Desktop context, kiểm tra context hiện tại:
@@ -236,7 +250,29 @@ docker compose logs -f weaviate
 docker compose logs -f milvus-standalone
 ```
 
-### 6.6. Rebuild khi dependency hoặc Dockerfile thay đổi
+### 6.6. Smoke test nhanh
+
+Sau khi các container đã `Up`, kiểm tra backend kết nối đủ 3 database:
+
+```bash
+curl http://localhost:8000/api/v1/health
+```
+
+Kết quả mong đợi:
+
+```json
+{"status":"ok","databases":{"Qdrant":true,"Weaviate":true,"Milvus":true}}
+```
+
+Kiểm tra dữ liệu benchmark snapshot dùng cho frontend:
+
+```bash
+curl http://localhost:8000/api/v1/benchmark/accuracy/latest
+curl http://localhost:8000/api/v1/benchmark/tradeoff/latest
+curl http://localhost:8000/api/v1/metrics
+```
+
+### 6.7. Rebuild khi dependency hoặc Dockerfile thay đổi
 
 ```bash
 docker compose up -d --build
@@ -459,6 +495,8 @@ Một số endpoint chính:
 | `/api/v1/resources` | GET | Lấy CPU/RAM container |
 | `/api/v1/ingest` | POST | Upload/chunk/embed/insert |
 | `/api/v1/chat` | POST | RAG query |
+| `/api/v1/benchmark/accuracy/latest` | GET | Lấy snapshot Recall@K/MRR từ dữ liệu benchmark thật |
+| `/api/v1/benchmark/tradeoff/latest` | GET | Lấy snapshot Recall vs Latency từ dữ liệu benchmark thật |
 | `/api/v1/benchmark/accuracy` | POST | Recall@K/MRR |
 | `/api/v1/benchmark/tradeoff` | POST | Recall vs Latency sweep |
 | `/api/v1/benchmark/stress` | POST | Stress test |
@@ -613,12 +651,13 @@ docker compose exec ollama ollama pull nomic-embed-text
 docker compose exec ollama ollama pull qwen2.5:3b
 ```
 
-### 14.5. Hết dung lượng disk khi Qdrant ghi WAL
+### 14.5. Hết dung lượng disk khi pull image/model hoặc Qdrant ghi WAL
 
 Triệu chứng:
 
 ```text
 No space left on device: WAL buffer size exceeds available disk space
+failed to extract layer ... no space left on device
 ```
 
 Kiểm tra disk:
@@ -626,6 +665,19 @@ Kiểm tra disk:
 ```bash
 df -h .
 docker system df
+```
+
+Nếu dùng Docker Desktop cũ trên cùng máy nhưng Docker daemon hiện tại là `/var/lib/docker`, kiểm tra thêm dữ liệu Docker Desktop còn sót:
+
+```bash
+du -h -d 2 ~/.docker/desktop 2>/dev/null | sort -h | tail
+docker info --format 'DockerRootDir={{.DockerRootDir}}'
+```
+
+Chỉ xóa file Docker Desktop VM disk khi chắc chắn nó không phải Docker daemon đang dùng. Việc xóa file này sẽ làm mất image/volume của Docker Desktop:
+
+```bash
+rm -f ~/.docker/desktop/vms/0/data/Docker.raw
 ```
 
 Dọn Docker build cache:
