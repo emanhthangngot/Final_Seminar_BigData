@@ -1,0 +1,5 @@
+volumes/
+*.log
+.git
+__pycache__
+node_modules
