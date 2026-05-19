@@ -11,10 +11,12 @@ import {
   ChevronDown,
   Cpu,
   Sparkles,
+  Network,
 } from 'lucide-react'
 
 const NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
+  { to: '/architecture', icon: Network, label: 'Architecture' },
   { to: '/latency', icon: Zap, label: 'Latency' },
   { to: '/accuracy', icon: Target, label: 'Accuracy' },
   { to: '/tradeoff', icon: TrendingUp, label: 'Recall vs Latency' },

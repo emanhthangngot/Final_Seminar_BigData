@@ -9,6 +9,7 @@ const TradeoffPage = lazy(() => import('./pages/TradeoffPage'))
 const HybridPage = lazy(() => import('./pages/HybridPage'))
 const DXScorePage = lazy(() => import('./pages/DXScorePage'))
 const RAGChatPage = lazy(() => import('./pages/RAGChatPage'))
+const ArchitecturePage = lazy(() => import('./pages/ArchitecturePage'))
 
 function PageFallback() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="accuracy" element={<AccuracyPage />} />
             <Route path="tradeoff" element={<TradeoffPage />} />
             <Route path="hybrid" element={<HybridPage />} />
+            <Route path="architecture" element={<ArchitecturePage />} />
             <Route path="dx-score" element={<DXScorePage />} />
             <Route path="rag-chat" element={<RAGChatPage />} />
           </Route>

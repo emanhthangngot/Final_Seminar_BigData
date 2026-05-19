@@ -10,6 +10,7 @@ const TITLE_MAP = {
   '/accuracy': 'Accuracy Benchmark',
   '/tradeoff': 'Recall vs Latency',
   '/hybrid': 'Hybrid Search',
+  '/architecture': 'Overall Architecture',
   '/dx-score': 'Developer Experience',
   '/rag-chat': 'RAG Chat Agent',
 }
