@@ -9,6 +9,8 @@ langchain>=0.1.13
 langchain-community>=0.0.29
 langchain-text-splitters>=0.0.1
 pypdf>=4.1.0
+PyMuPDF>=1.24.0         # 3-10x faster PDF extraction than pypdf
+requests>=2.31.0        # Direct Ollama API calls for batch embedding
 
 # Database Clients
 qdrant-client>=1.8.0

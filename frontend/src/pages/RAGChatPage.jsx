@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Activity, Bot, BrainCircuit, Cpu, Database, Gauge, PanelRight, Send, Sparkles, Trash2, User } from 'lucide-react'
+import { Activity, Bot, BrainCircuit, Cpu, Database, FileText, Gauge, PanelRight, Send, Sparkles, Trash2, User } from 'lucide-react'
 import DBBadge from '../components/ui/DBBadge'
 import UploadPanel from '../components/ui/UploadPanel'
 import { useBenchmarkStore } from '../store/benchmarkStore'
@@ -119,6 +119,7 @@ export default function RAGChatPage() {
   const [input, setInput] = useState('')
   const [compareMode, setCompareMode] = useState(true)
   const [comparisonSessions, setComparisonSessions] = useState([])
+  const [currentDocument, setCurrentDocument] = useState(null)
   const bottomRef = useRef(null)
 
   const { data: health } = useQuery({
@@ -194,6 +195,16 @@ export default function RAGChatPage() {
   const clearAll = () => {
     clearChat()
     setComparisonSessions([])
+  }
+
+  const handleIngestSuccess = (data) => {
+    clearAll()
+    setCurrentDocument(data?.filename ?? 'Uploaded PDF')
+  }
+
+  const handleResetSuccess = () => {
+    clearAll()
+    setCurrentDocument(null)
   }
 
   const latest = comparisonSessions[comparisonSessions.length - 1]
@@ -279,7 +290,13 @@ export default function RAGChatPage() {
           </div>
         </div>
 
-        <UploadPanel selectedDB={selectedDB} compareMode={compareMode} />
+        <UploadPanel
+          selectedDB={selectedDB}
+          compareMode={compareMode}
+          forceAll
+          onSuccess={handleIngestSuccess}
+          onResetSuccess={handleResetSuccess}
+        />
       </div>
 
       <div className="card flex min-w-0 flex-col overflow-hidden">
@@ -427,6 +444,13 @@ export default function RAGChatPage() {
             {compareMode ? <Gauge size={13} className="text-cyan" /> : <Sparkles size={13} className="text-cyan" />}
             {compareMode ? 'One request returns three answers, evidence sets, and real timing metrics.' : 'Single mode uses the selected database only.'}
           </div>
+          {currentDocument && (
+            <div className="mb-3 flex min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-slate-300">
+              <FileText size={13} className="flex-shrink-0 text-primary" />
+              <span className="text-slate-500">Current document</span>
+              <span className="min-w-0 truncate font-mono text-slate-200">{currentDocument}</span>
+            </div>
+          )}
           <div className="flex gap-2">
             <input
               value={input}

@@ -108,6 +108,9 @@ Thư mục chính:
 
 ## 5. Yêu cầu hệ thống
 
+> [!IMPORTANT]  
+> **Hệ điều hành hỗ trợ:** Hệ thống chỉ được tối ưu hóa và hỗ trợ chính thức trên **Linux Native** và **WSL (Windows Subsystem for Linux)**. Không hỗ trợ chạy trực tiếp trên môi trường Windows Native (PowerShell/CMD) hoặc macOS để đảm bảo độ tương thích tối đa của Docker Network, Ollama Host port-mapping, và các thư viện đo lường tài nguyên hệ thống (`psutil`, `Docker SDK`).
+
 | Thành phần | Yêu cầu |
 | :- | :- |
 | Docker | Docker 24+ |
@@ -331,13 +334,6 @@ docker compose up -d qdrant weaviate etcd minio milvus-standalone ollama ollama-
 ```bash
 python3.11 -m venv venv
 source venv/bin/activate
-```
-
-Windows:
-
-```powershell
-py -3.11 -m venv venv
-venv\Scripts\activate
 ```
 
 ### 8.3. Cài dependency

@@ -108,9 +108,9 @@ services:
       sh -c "
         echo 'Waiting for Ollama to be available...';
         while ! curl -s http://ollama:11434/api/tags >/dev/null; do sleep 3; done;
-        echo 'Ollama is Active. Pulling required models (nomic-embed-text and qwen2.5:3b)...';
+        echo 'Ollama is Active. Pulling required models (nomic-embed-text and qwen2.5:0.5b)...';
         curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"nomic-embed-text\"}';
-        curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"qwen2.5:3b\"}';
+        curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"qwen2.5:0.5b\"}';
         echo 'Model pull requests completed.';
       "
 
@@ -132,20 +132,12 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_HOST=http://ollama:11434
       - EMBEDDING_MODEL=nomic-embed-text
-      - LLM_MODEL=qwen2.5:3b
+      - LLM_MODEL=qwen2.5:0.5b
       - QDRANT_HOST=qdrant
       - WEAVIATE_HOST=weaviate
       - MILVUS_HOST=milvus-standalone
-      - VIRTUAL_ENV=/opt/venv
       - PYTHONPATH=/app:/app/backend
-    command: >
-      sh -c "
-        python -m venv /opt/venv &&
-        . /opt/venv/bin/activate &&
-        python -m pip install --upgrade pip &&
-        pip install --no-cache-dir -r /app/requirements.txt -r /app/backend/requirements.txt &&
-        exec uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
-      "
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - seminar_net
     depends_on:

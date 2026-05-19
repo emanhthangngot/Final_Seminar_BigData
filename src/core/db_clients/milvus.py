@@ -55,7 +55,8 @@ def _get_process_ram_mb() -> float:
         return 0.0
 
 # Batch size for large corpus ingestion — avoids timeout/OOM on 10K+ chunks
-INSERT_BATCH_SIZE = 500
+# Increased from 500 to 2000 for fewer round-trips on large corpora
+INSERT_BATCH_SIZE = 2000
 FILTER_FIELDS = {
     "source": "string",
     "category": "string",
@@ -260,7 +261,7 @@ class MilvusWrapper(BaseVectorDB):
         self.collection.flush()
         _flush_ms = (time.perf_counter() - _t_flush_start) * 1000
         log_metrics("Milvus", "flush", _flush_ms)
-        logger.info("[Milvus] Inserted %d chunks total and flushed (%.2f ms).", total, _flush_ms)
+        logger.info("[Milvus] Inserted %d chunks total and flushed sync (%.2f ms).", total, _flush_ms)
         return True
 
     # ------------------------------------------------------------------

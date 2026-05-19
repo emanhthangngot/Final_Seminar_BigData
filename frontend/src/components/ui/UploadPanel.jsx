@@ -1,12 +1,13 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Upload, FileText, X, CheckCircle, Database, Layers3 } from 'lucide-react'
+import { Upload, FileText, X, CheckCircle, Database, Layers3, RefreshCw } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '../../services/api'
 
-export default function UploadPanel({ selectedDB, onSuccess, compareMode = false }) {
+export default function UploadPanel({ selectedDB, onSuccess, onResetSuccess, compareMode = false, forceAll = false }) {
   const [file, setFile] = useState(null)
+  const ingestAll = forceAll || compareMode
 
   const { mutate, isPending, isSuccess, isError, error, reset } = useMutation({
     mutationFn: ({ file, db, all }) => all ? api.ingestDocumentAll(file) : api.ingestDocument(file, db),
@@ -14,6 +15,17 @@ export default function UploadPanel({ selectedDB, onSuccess, compareMode = false
       onSuccess?.(data)
       setTimeout(() => { setFile(null); reset() }, 3000)
     },
+  })
+
+  const {
+    mutate: resetAll,
+    isPending: isResetting,
+    isSuccess: isResetSuccess,
+    isError: isResetError,
+    error: resetError,
+  } = useMutation({
+    mutationFn: api.resetAllDocuments,
+    onSuccess: (data) => onResetSuccess?.(data),
   })
 
   const onDrop = useCallback((accepted) => {
@@ -29,7 +41,9 @@ export default function UploadPanel({ selectedDB, onSuccess, compareMode = false
       <div className="relative z-10 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Data Ingestion</p>
-          <p className="mt-1 text-xs text-slate-500">{compareMode ? 'sync one PDF to all engines' : 'PDF to chunks to embeddings'}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {ingestAll ? 'PDF -> chunks -> embeddings -> 3 DBs' : 'PDF -> chunks -> embeddings'}
+          </p>
         </div>
         <Database size={18} className="text-cyan" />
       </div>
@@ -81,19 +95,42 @@ export default function UploadPanel({ selectedDB, onSuccess, compareMode = false
       )}
       {isSuccess && (
         <div className="relative z-10 space-y-2">
-          <p className="text-xs text-milvus flex items-center gap-1">
-            <CheckCircle size={12} /> Ingested successfully
+          <p className="flex items-center gap-1 text-xs text-milvus">
+            <CheckCircle size={12} /> Ingested into {ingestAll ? 'all 3 DBs' : selectedDB}
           </p>
         </div>
       )}
+      {isResetError && (
+        <p className="text-xs text-qdrant">{resetError?.message ?? 'Reset failed'}</p>
+      )}
+      {isResetSuccess && (
+        <p className="relative z-10 flex items-center gap-1 text-xs text-amber-200">
+          <CheckCircle size={12} /> All 3 databases were reset
+        </p>
+      )}
 
-      <button
-        className="btn-primary relative z-10 w-full text-sm py-2"
-        disabled={!file || isPending || !selectedDB}
-        onClick={() => mutate({ file, db: selectedDB, all: compareMode })}
-      >
-        {isPending ? 'Processing...' : compareMode ? 'Ingest into all 3 DBs' : `Ingest into ${selectedDB ?? '—'}`}
-      </button>
+      <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+        <button
+          className="btn-primary w-full py-2 text-sm"
+          disabled={!file || isPending || isResetting || (!selectedDB && !ingestAll)}
+          onClick={() => mutate({ file, db: selectedDB, all: ingestAll })}
+        >
+          {isPending ? 'Chunking + indexing...' : ingestAll ? 'Ingest into all 3 DBs' : `Ingest into ${selectedDB ?? '-'}`}
+        </button>
+        <button
+          className="btn-ghost h-10 w-10 p-0"
+          disabled={isPending || isResetting}
+          onClick={() => {
+            if (window.confirm('Reset all data in Qdrant, Weaviate, and Milvus?')) {
+              resetAll()
+            }
+          }}
+          title="Reset all 3 databases"
+          aria-label="Reset all 3 databases"
+        >
+          <RefreshCw size={16} className={isResetting ? 'animate-spin' : ''} />
+        </button>
+      </div>
     </div>
   )
 }

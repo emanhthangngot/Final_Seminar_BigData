@@ -16,9 +16,15 @@ class FakeEngine:
         self.fail_insert = fail_insert
         self.fail_search = fail_search
         self.insert_calls = 0
+        self.reset_calls = 0
+        self.last_insert = None
 
-    def insert(self, chunks, embeddings):
+    def reset_collection(self):
+        self.reset_calls += 1
+
+    def insert(self, chunks, embeddings, metadata=None):
         self.insert_calls += 1
+        self.last_insert = {"chunks": chunks, "embeddings": embeddings, "metadata": metadata}
         if self.fail_insert:
             raise RuntimeError(f"{self.name} insert failed")
         return True
@@ -72,6 +78,31 @@ class CompareContractTests(unittest.TestCase):
         self.assertEqual(result["results"]["Weaviate"]["status"], "error")
         self.assertEqual(result["results"]["Milvus"]["status"], "success")
         self.assertIn("insert failed", result["results"]["Weaviate"]["error"])
+
+    def test_ingest_pdf_all_resets_each_database_before_inserting_current_document(self):
+        from app.services.ingest_service import IngestService
+
+        service = IngestService()
+        service._embedder = FakeEmbedder()
+        engines = {
+            "Qdrant": FakeEngine("Qdrant"),
+            "Weaviate": FakeEngine("Weaviate"),
+            "Milvus": FakeEngine("Milvus"),
+        }
+
+        with (
+            mock.patch("app.services.ingest_service.load_and_chunk_pdf", return_value=["new a", "new b"]),
+            mock.patch("app.services.ingest_service.db_service.all", return_value=engines),
+        ):
+            result = asyncio.run(service.ingest_pdf_all(b"%PDF", "new-document.pdf"))
+
+        self.assertEqual(result["filename"], "new-document.pdf")
+        for engine in engines.values():
+            self.assertEqual(engine.reset_calls, 1)
+            self.assertEqual(engine.insert_calls, 1)
+            self.assertEqual(engine.last_insert["chunks"], ["new a", "new b"])
+            self.assertEqual(engine.last_insert["metadata"][0]["source"], "new-document.pdf")
+            self.assertEqual(engine.last_insert["metadata"][0]["chunk_id"], "new-document.pdf::chunk-0001")
 
     def test_compare_chat_embeds_once_and_returns_per_database_metrics(self):
         from app.services.chat_service import ChatService

@@ -1,15 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import TradeoffCurve from '../components/charts/TradeoffCurve'
 import { useBenchmarkStore } from '../store/benchmarkStore'
 import { api } from '../services/api'
 import { tradeoffConclusion } from '../utils/benchmarkInsights'
-import { BrainCircuit, Crosshair, Play, Sparkles } from 'lucide-react'
+import { BrainCircuit, Crosshair, Sparkles } from 'lucide-react'
 
 export default function TradeoffPage() {
   const { tradeoffResults, setTradeoffResults } = useBenchmarkStore()
-  const [ingest, setIngest] = useState(false)
 
   const { data: latestTradeoff = [] } = useQuery({
     queryKey: ['benchmark', 'tradeoff', 'latest'],
@@ -23,10 +22,6 @@ export default function TradeoffPage() {
     }
   }, [latestTradeoff, setTradeoffResults, tradeoffResults.length])
 
-  const { mutate, isPending } = useMutation({
-    mutationFn: () => api.runTradeoffSweep(ingest),
-    onSuccess: setTradeoffResults,
-  })
   const conclusion = tradeoffConclusion(tradeoffResults)
 
   return (
@@ -43,24 +38,14 @@ export default function TradeoffPage() {
           <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
             <div className="mb-4 flex items-center gap-2">
               <Crosshair size={16} className="text-cyan" />
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Sweep Control</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Saved Sweep</h3>
             </div>
             <p className="text-sm text-slate-400">
               top_k ∈ <code className="font-mono text-primary">{'{'} 1, 2, 5, 10, 20, 50 {'}'}</code>
             </p>
-            <label className="mt-4 flex cursor-pointer items-center gap-2 text-xs text-slate-400">
-              <input type="checkbox" checked={ingest} onChange={(e) => setIngest(e.target.checked)} className="accent-primary" />
-              Ingest corpus before sweep
-            </label>
-            <button className="btn-primary mt-4" disabled={isPending} onClick={() => mutate()}>
-              <Play size={15} />
-              {isPending ? 'Sweeping...' : 'Run Tradeoff Sweep'}
-            </button>
-            {isPending && (
-              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10">
-                <div className="h-full w-3/4 animate-pulse rounded-full bg-gradient-primary" />
-              </div>
-            )}
+            <p className="mt-3 text-sm leading-6 text-slate-400">
+              The chart loads the latest stored sweep automatically to avoid changing seminar results during presentation.
+            </p>
           </div>
         </div>
       </div>
@@ -80,7 +65,7 @@ export default function TradeoffPage() {
         <div className="relative z-10 flex items-start gap-3">
           <Sparkles size={18} className="mt-0.5 text-cyan" />
           <div>
-            <h3 className="text-sm font-semibold text-white">AI-generated conclusion</h3>
+            <h3 className="text-sm font-semibold text-white">Seminar conclusion</h3>
             <p className="mt-2 text-sm leading-6 text-slate-400">
               {conclusion}
             </p>

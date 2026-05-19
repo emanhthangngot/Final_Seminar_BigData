@@ -41,3 +41,10 @@ class TradeoffResult(BaseModel):
     top_k: int
     Recall: float
     AvgLatency_ms: float
+
+
+class BenchmarkReportResponse(BaseModel):
+    report_md: str
+    slides_md: str
+    generated_at: str
+    sources: dict[str, str]

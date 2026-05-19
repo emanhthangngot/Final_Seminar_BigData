@@ -12,3 +12,8 @@ async def ingest(file: UploadFile = File(...), db: str = Form(...)):
 @router.post("/ingest/all")
 async def ingest_all(file: UploadFile = File(...)):
     return await IngestController.ingest_all(file)
+
+
+@router.delete("/ingest/all")
+async def reset_all():
+    return await IngestController.reset_all()

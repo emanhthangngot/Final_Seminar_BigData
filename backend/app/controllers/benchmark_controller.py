@@ -15,6 +15,13 @@ class BenchmarkController:
         return benchmark_service.get_latest_tradeoff()
 
     @staticmethod
+    def report() -> dict:
+        try:
+            return benchmark_service.generate_report()
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+
+    @staticmethod
     def accuracy(req: AccuracyBenchmarkRequest) -> list[dict]:
         try:
             return benchmark_service.run_accuracy(req.corpus_size, req.num_queries, req.ingest)

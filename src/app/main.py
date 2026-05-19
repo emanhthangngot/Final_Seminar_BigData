@@ -160,16 +160,37 @@ def main():
         if uploaded_file is not None and active_db:
             if st.button("Process & Inject"):
                 with st.spinner(f"Ingesting into {selected_engine_name}..."):
+                    import time as _time
+                    _t_total = _time.perf_counter()
+
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                         tmp_file.write(uploaded_file.getvalue())
                         tmp_path = tmp_file.name
                     
                     try:
+                        # Stage 1: PDF Load + Chunk
+                        _t1 = _time.perf_counter()
                         chunks = load_and_chunk_pdf(tmp_path)
+                        _t1_ms = (_time.perf_counter() - _t1) * 1000
+
                         if chunks:
+                            # Stage 2: Embedding
+                            _t2 = _time.perf_counter()
                             embeddings = embedder.embed_documents(chunks)
+                            _t2_ms = (_time.perf_counter() - _t2) * 1000
+
+                            # Stage 3: DB Insert
+                            _t3 = _time.perf_counter()
                             active_db.insert(chunks, embeddings)
-                            st.success(f"Ingested {len(chunks)} chunks!")
+                            _t3_ms = (_time.perf_counter() - _t3) * 1000
+
+                            _total_ms = (_time.perf_counter() - _t_total) * 1000
+                            st.success(
+                                f"✅ Ingested {len(chunks)} chunks in {_total_ms:.0f} ms\n\n"
+                                f"📖 PDF Load+Chunk: {_t1_ms:.0f} ms | "
+                                f"🧠 Embedding: {_t2_ms:.0f} ms | "
+                                f"💾 DB Insert: {_t3_ms:.0f} ms"
+                            )
                         else:
                             st.error("Extraction failed.")
                     finally:

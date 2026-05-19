@@ -17,6 +17,9 @@ from src.core.utils.logger import logger
 class LLMGenerator:
     """Unified LLM generation interface for Ollama or explicit mock mode."""
 
+    MAX_CONTEXT_CHUNKS = 3
+    MAX_CHARS_PER_CHUNK = 700
+
     # The system prompt instructs the LLM to be a domain-specific assistant.
     SYSTEM_PROMPT = textwrap.dedent("""\
         You are a knowledgeable assistant specialised in Big Data technologies,
@@ -39,6 +42,8 @@ class LLMGenerator:
                     base_url=OLLAMA_BASE_URL,
                     model=LLM_MODEL,
                     temperature=0.3,
+                    num_predict=90,
+                    num_ctx=2048,
                 )
                 logger.info(
                     "[LLMGenerator] Connected to Ollama LLM at %s with model %s",
@@ -118,12 +123,17 @@ answers grounded in the retrieved context.
         """
         if self._llm is not None:
             # Build prompt
-            context_block = "\n---\n".join(context_chunks)
+            trimmed_chunks = [
+                chunk[:self.MAX_CHARS_PER_CHUNK]
+                for chunk in context_chunks[:self.MAX_CONTEXT_CHUNKS]
+                if chunk
+            ]
+            context_block = "\n---\n".join(trimmed_chunks)
             full_prompt = (
                 f"{self.SYSTEM_PROMPT}\n\n"
                 f"### Context:\n{context_block}\n\n"
                 f"### Question:\n{query}\n\n"
-                f"### Answer:"
+                f"### Answer in Vietnamese, concise, max 3 bullet points:"
             )
             try:
                 answer = self._llm.invoke(full_prompt)

@@ -34,10 +34,15 @@ def _ensure_metrics_file() -> None:
 def log_metrics(engine: str, operation: str, duration_ms: float) -> None:
     """Append a single telemetry row to the metrics ledger (thread-safe)."""
     with _write_lock:
-        _ensure_metrics_file()
-        with open(METRICS_FILE, "a", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow(
-                [datetime.now().isoformat(timespec="milliseconds"), engine, operation, f"{duration_ms:.3f}"]
+        try:
+            _ensure_metrics_file()
+            with open(METRICS_FILE, "a", newline="", encoding="utf-8") as f:
+                csv.writer(f).writerow(
+                    [datetime.now().isoformat(timespec="milliseconds"), engine, operation, f"{duration_ms:.3f}"]
+                )
+        except (PermissionError, OSError) as exc:
+            logger.warning(
+                f"[Profiler] Could not write metrics for {engine}/{operation} to {METRICS_FILE}: {exc}"
             )
 
 

@@ -1,23 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { RadarChart, Radar, PolarGrid, PolarAngleAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { api } from '../services/api'
 import DBBadge from '../components/ui/DBBadge'
-import { Code2, GitBranch, Network, Play, Wrench } from 'lucide-react'
-
-const DB_COLORS = { Qdrant: '#EF4444', Weaviate: '#3B82F6', Milvus: '#10B981' }
+import { GitBranch, Wrench } from 'lucide-react'
 
 export default function DXScorePage() {
-  const { data: dx, isLoading, refetch } = useQuery({
-    queryKey: ['dx'], queryFn: api.getDXScore, enabled: false,
+  const { data: dx, isLoading } = useQuery({
+    queryKey: ['dx'], queryFn: api.getDXScore,
   })
 
-  const radarData = dx
-    ? ['sloc', 'methods', 'cyclomatic', 'third_party_imports'].map((ax) => ({
-        subject: ax,
-        ...Object.fromEntries(Object.entries(dx).map(([db, v]) => [db, v[ax] ?? 0])),
-      }))
-    : []
   const composite = dx
     ? Object.fromEntries(Object.entries(dx).map(([db, scores]) => [
         db,
@@ -28,29 +19,32 @@ export default function DXScorePage() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
       <div className="card-glow p-6">
-        <div className="relative z-10 grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="relative z-10 grid gap-5 lg:grid-cols-[minmax(0,1fr)_390px]">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-cyan/75">Developer Experience Intelligence</p>
-            <h1 className="hero-title mt-2">SDK complexity, maintainability, and ecosystem posture.</h1>
+            <h1 className="hero-title mt-2">Developer effort snapshot.</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              SLOC, cyclomatic complexity, API surface, and import pressure become a readable engineering intelligence layer.
+              SLOC, cyclomatic complexity, API surface, and import pressure provide a lightweight proxy for integration effort.
             </p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
             <Wrench size={18} className="mb-3 text-cyan" />
-            <p className="text-sm text-slate-400">Lower composite score indicates an easier integration path.</p>
-        <button className="btn-primary" disabled={isLoading} onClick={() => refetch()}>
-          <Play size={15} />
-          {isLoading ? 'Analyzing...' : 'Run DX Analyzer'}
-        </button>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Metric Meaning</h3>
+            <div className="mt-3 space-y-2 text-sm leading-5 text-slate-400">
+              <p><span className="font-mono text-cyan">sloc</span>: số dòng code cần viết để tích hợp database.</p>
+              <p><span className="font-mono text-cyan">methods</span>: số hàm/API wrapper phải duy trì.</p>
+              <p><span className="font-mono text-cyan">cyclomatic</span>: độ phức tạp nhánh logic trong client.</p>
+              <p><span className="font-mono text-cyan">third_party_imports</span>: mức phụ thuộc thư viện ngoài.</p>
+              <p><span className="font-mono text-white">Composite DX</span>: tổng proxy effort; điểm thấp hơn thường dễ tích hợp hơn.</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {!dx && (
+      {isLoading && (
         <div className="card p-5">
-          <div className="relative z-10 flex h-[220px] items-center justify-center text-sm text-slate-400">
-            Run the analyzer to compare implementation size, complexity, API surface, and dependencies.
+          <div className="relative z-10 flex h-[220px] items-center justify-center">
+            <div className="skeleton h-24 w-full max-w-2xl" />
           </div>
         </div>
       )}
@@ -67,27 +61,6 @@ export default function DXScorePage() {
                 </div>
               </div>
             ))}
-          </div>
-
-          <div className="card p-5">
-            <div className="relative z-10 mb-4 flex items-center gap-2">
-              <Network size={16} className="text-cyan" />
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">DX Radar</h3>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <RadarChart data={radarData} margin={{ top: 8, right: 32, left: 32, bottom: 8 }}>
-                <PolarGrid stroke="rgba(148,163,255,0.12)" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#CBD5E1', fontSize: 11 }} />
-                {Object.entries(DB_COLORS).map(([db, color]) => (
-                  <Radar key={db} name={db} dataKey={db} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.13} />
-                ))}
-                <Tooltip
-                  contentStyle={{ background: 'rgba(12,12,20,0.95)', border: '1px solid rgba(94,106,210,0.3)', borderRadius: 8 }}
-                  labelStyle={{ color: '#eaeaea' }}
-                />
-                <Legend wrapperStyle={{ fontSize: 12, color: '#9CA3AF' }} />
-              </RadarChart>
-            </ResponsiveContainer>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

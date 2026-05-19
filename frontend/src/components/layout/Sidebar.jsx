@@ -18,9 +18,9 @@ const NAV = [
   { to: '/latency', icon: Zap, label: 'Latency' },
   { to: '/accuracy', icon: Target, label: 'Accuracy' },
   { to: '/tradeoff', icon: TrendingUp, label: 'Recall vs Latency' },
-  { to: '/hybrid', icon: GitMerge, label: 'Hybrid Search' },
   { to: '/dx-score', icon: Code2, label: 'DX Score' },
   { to: '/rag-chat', icon: MessageSquare, label: 'RAG Chat' },
+  { to: '/hybrid', icon: GitMerge, label: 'Hybrid Search' },
 ]
 
 export default function Sidebar() {

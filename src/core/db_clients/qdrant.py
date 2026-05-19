@@ -183,9 +183,9 @@ class QdrantWrapper(BaseVectorDB):
                 )
 
         self.client.upload_points(
-            collection_name=self.collection_name, points=_point_generator(), wait=True
+            collection_name=self.collection_name, points=_point_generator(), wait=False
         )
-        logger.info("[Qdrant] Uploaded %d points via SDK-managed batching.", len(chunks))
+        logger.info("[Qdrant] Uploaded %d points via SDK-managed batching (async).", len(chunks))
         return True
 
     # ------------------------------------------------------------------

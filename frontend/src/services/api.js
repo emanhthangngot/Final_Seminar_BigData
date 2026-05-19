@@ -56,6 +56,7 @@ export const api = {
     form.append('file', file)
     return http.post('/ingest/all', form, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
+  resetAllDocuments: () => http.delete('/ingest/all'),
 
   // Benchmark
   getLatestAccuracyBenchmark: () =>
@@ -78,6 +79,8 @@ export const api = {
 
   runHybridBenchmark: (query, filters, topK) =>
     http.post('/benchmark/hybrid', { query, filters, top_k: topK }),
+
+  getBenchmarkReport: () => http.get('/benchmark/report'),
 
   // DX Score
   getDXScore: () => http.get('/dx'),

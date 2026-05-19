@@ -164,7 +164,7 @@ class WeaviateWrapper(BaseVectorDB):
             )
 
         collection = self.client.collections.get(self.collection_name)
-        with collection.batch.dynamic() as batch:
+        with collection.batch.fixed_size(batch_size=200) as batch:
             for i, (chunk, vector) in enumerate(zip(chunks, embeddings)):
                 if len(vector) != VECTOR_DIM:
                     raise ValueError(
@@ -177,7 +177,7 @@ class WeaviateWrapper(BaseVectorDB):
                 )
                 batch.add_object(properties=properties, vector=vector)
 
-        logger.info("[Weaviate] Inserted %d chunks via dynamic batch.", len(chunks))
+        logger.info("[Weaviate] Inserted %d chunks via fixed-size batch (200).", len(chunks))
         return True
 
     def _build_properties(

@@ -112,7 +112,8 @@ def run_phase3() -> None:
     milvus.reset_collection()
     print("  [OK] Collection reset & recreated.")
 
-    embedder = MockEmbedder()
+    from src.core.data_ingestion.embedder import Embedder
+    embedder = Embedder()
 
     # ── 1. Accuracy Benchmark ─────────────────────────────────────────────────
     _section("[1/4] Accuracy Benchmark (Recall@K, MRR)")

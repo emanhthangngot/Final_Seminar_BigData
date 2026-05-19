@@ -71,10 +71,7 @@ export default function Navbar() {
           <div className="hidden rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2 font-mono text-[11px] text-slate-300 md:block">
             {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </div>
-          <button className="btn-primary hidden px-3 py-2 text-xs md:inline-flex">
-            <Sparkles size={14} />
-            AI Recommend
-          </button>
+
           <button className="btn-ghost h-10 w-10 p-0" aria-label="Notifications">
             <Bell size={16} />
           </button>

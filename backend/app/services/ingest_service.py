@@ -29,9 +29,16 @@ class IngestService:
             t0 = time.perf_counter()
             chunks = load_and_chunk_pdf(tmp_path)
             embeddings = self.embedder.embed_documents(chunks)
-            engine.insert(chunks, embeddings)
+            metadata = self._build_chunk_metadata(filename, len(chunks))
+            engine.reset_collection()
+            engine.insert(chunks, embeddings, metadata)
             elapsed = (time.perf_counter() - t0) * 1000
-            return {"chunks": len(chunks), "db": db_name, "ingest_ms": round(elapsed, 2)}
+            return {
+                "filename": filename,
+                "chunks": len(chunks),
+                "db": db_name,
+                "ingest_ms": round(elapsed, 2),
+            }
         finally:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
@@ -49,13 +56,15 @@ class IngestService:
             started = time.perf_counter()
             chunks = load_and_chunk_pdf(tmp_path)
             embeddings = self.embedder.embed_documents(chunks)
+            metadata = self._build_chunk_metadata(filename, len(chunks))
             parse_embed_ms = (time.perf_counter() - started) * 1000
 
             results: dict[str, dict] = {}
             for db_name, engine in engines.items():
                 db_started = time.perf_counter()
                 try:
-                    engine.insert(chunks, embeddings)
+                    engine.reset_collection()
+                    engine.insert(chunks, embeddings, metadata)
                     results[db_name] = {
                         "status": "success",
                         "chunks": len(chunks),
@@ -79,6 +88,43 @@ class IngestService:
         finally:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
+
+    async def reset_all(self) -> dict:
+        engines = db_service.all()
+        if not engines:
+            raise ValueError("No databases are connected.")
+
+        results: dict[str, dict] = {}
+        for db_name, engine in engines.items():
+            started = time.perf_counter()
+            try:
+                engine.reset_collection()
+                results[db_name] = {
+                    "status": "success",
+                    "reset_ms": round((time.perf_counter() - started) * 1000, 2),
+                    "error": None,
+                }
+            except Exception as exc:
+                results[db_name] = {
+                    "status": "error",
+                    "reset_ms": round((time.perf_counter() - started) * 1000, 2),
+                    "error": str(exc),
+                }
+
+        return {"results": results}
+
+    @staticmethod
+    def _build_chunk_metadata(filename: str, chunk_count: int) -> list[dict]:
+        source = filename[:1024]
+        return [
+            {
+                "source": source,
+                "chunk_id": f"{source}::chunk-{idx + 1:04d}",
+                "category": "uploaded_pdf",
+                "page": 0,
+            }
+            for idx in range(chunk_count)
+        ]
 
 
 ingest_service = IngestService()

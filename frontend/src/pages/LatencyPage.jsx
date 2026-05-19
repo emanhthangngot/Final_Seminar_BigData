@@ -1,19 +1,22 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { LatencyBarChart, LatencyTimelineChart } from '../components/charts/LatencyChart'
-import MetricCard from '../components/ui/MetricCard'
+import { LatencyBarChart } from '../components/charts/LatencyChart'
 import { api } from '../services/api'
-import { Activity, Gauge, Radio, SlidersHorizontal } from 'lucide-react'
+import { Activity, Radio, SlidersHorizontal } from 'lucide-react'
 
 const DBS = ['Qdrant', 'Weaviate', 'Milvus']
+const DB_META = {
+  Qdrant: { color: 'text-qdrant', border: 'border-qdrant/25', bg: 'bg-qdrant/10', dot: 'bg-qdrant' },
+  Weaviate: { color: 'text-weaviate', border: 'border-weaviate/25', bg: 'bg-weaviate/10', dot: 'bg-weaviate' },
+  Milvus: { color: 'text-milvus', border: 'border-milvus/25', bg: 'bg-milvus/10', dot: 'bg-milvus' },
+}
 
 export default function LatencyPage() {
   const [selectedDB, setSelectedDB] = useState('All')
   const { data: raw = [], isLoading } = useQuery({
     queryKey: ['metrics'], queryFn: api.getMetrics, refetchInterval: 15_000,
   })
-  const { data: resources } = useQuery({ queryKey: ['resources'], queryFn: api.getResources, refetchInterval: 10_000 })
 
   const ops = ['insert', 'search']
   const chartData = ops.map((op) => {
@@ -28,20 +31,17 @@ export default function LatencyPage() {
   const visibleDBs = selectedDB === 'All' ? DBS : [selectedDB]
   const insertData = chartData.filter((row) => row.operation === 'insert')
   const searchData = chartData.filter((row) => row.operation === 'search')
-  const timelineData = raw
-    .filter((r) => r.Operation === 'search' && visibleDBs.includes(r.Engine))
-    .reduce((acc, row, idx) => {
-      const bucket = Math.floor(idx / visibleDBs.length)
-      acc[bucket] = acc[bucket] ?? { ts: `#${bucket + 1}` }
-      acc[bucket][row.Engine] = row.Duration_ms
-      return acc
-    }, [])
 
   const percentile = (db, op, pct) => {
     const rows = raw.filter((r) => r.Engine === db && r.Operation === op).map((r) => r.Duration_ms).sort((a, b) => a - b)
     if (!rows.length) return '—'
     return rows[Math.min(Math.floor(rows.length * pct), rows.length - 1)]?.toFixed(1) ?? '—'
   }
+  const latencyCards = visibleDBs.map((db) => ({
+    db,
+    p50: percentile(db, 'search', 0.5),
+    p95: percentile(db, 'search', 0.95),
+  }))
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
@@ -69,47 +69,62 @@ export default function LatencyPage() {
         </div>
       </section>
 
-      <div className="hidden flex-wrap gap-2">
-        {['All', ...DBS].map((db) => (
-          <button
-            key={db}
-            type="button"
-            onClick={() => setSelectedDB(db)}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
-              selectedDB === db ? 'border-primary bg-primary/20 text-white' : 'border-border text-gray-300 hover:border-border-bright'
-            }`}
-          >
-            {db}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {DBS.map((db) => (
-          <MetricCard
-            key={db}
-            label={`${db} — Search p50`}
-            value={percentile(db, 'search', 0.5)}
-            unit="ms"
-            color={db.toLowerCase()}
-            trend={db === 'Milvus' ? 4.2 : db === 'Weaviate' ? 1.9 : -2.3}
-            insight="median path · current sample window"
-          />
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {DBS.map((db) => (
-          <MetricCard
-            key={db}
-            label={`${db} — Search p95`}
-            value={percentile(db, 'search', 0.95)}
-            unit="ms"
-            color={db.toLowerCase()}
-            trend={db === 'Qdrant' ? -4.7 : 3.1}
-            insight="tail latency · spike-sensitive"
-          />
-        ))}
+      <div className={`grid grid-cols-1 gap-4 ${selectedDB === 'All' ? 'md:grid-cols-3' : 'xl:grid-cols-[minmax(0,1fr)_360px]'}`}>
+        {latencyCards.map(({ db, p50, p95 }) => {
+          const meta = DB_META[db]
+          return (
+            <motion.div
+              key={db}
+              layout
+              whileHover={{ y: -3 }}
+              className={`card p-5 ${selectedDB !== 'All' ? 'xl:col-span-1' : ''}`}
+            >
+              <div className="relative z-10">
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="metric-label">Search latency profile</p>
+                    <h3 className={`mt-1 text-xl font-bold ${meta.color}`}>{db}</h3>
+                  </div>
+                  <span className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${meta.border} ${meta.bg}`}>
+                    <Activity size={18} className={meta.color} />
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={`rounded-2xl border ${meta.border} bg-white/[0.035] p-4`}>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-slate-500">p50 median</p>
+                    <div className="mt-3 flex items-end gap-1">
+                      <span className={`font-mono text-4xl font-bold ${meta.color}`}>{p50}</span>
+                      <span className="mb-1 font-mono text-sm text-slate-500">ms</span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">Typical user-facing search path.</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-slate-500">p95 tail</p>
+                    <div className="mt-3 flex items-end gap-1">
+                      <span className="font-mono text-4xl font-bold text-white">{p95}</span>
+                      <span className="mb-1 font-mono text-sm text-slate-500">ms</span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">Slow-path stability check.</p>
+                  </div>
+                </div>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className={`h-full rounded-full ${meta.dot}`} style={{ width: p50 === '—' ? '0%' : `${Math.min(100, 100 - Number(p50))}%` }} />
+                </div>
+              </div>
+            </motion.div>
+          )
+        })}
+        {selectedDB !== 'All' && (
+          <div className="card p-5">
+            <div className="relative z-10">
+              <p className="metric-label">Selected view</p>
+              <h3 className="mt-2 text-xl font-bold text-white">Focused database mode</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-400">
+                Only {selectedDB} is shown in the p50/p95 cards and charts. Switch back to All to compare all three engines side by side.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
@@ -136,45 +151,6 @@ export default function LatencyPage() {
           )}
         </div>
       </div>
-
-      <div className="card p-5">
-        <div className="relative z-10 mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Search Latency Timeline</h3>
-          <span className="rounded-full border border-emerald/20 bg-emerald/10 px-3 py-1 font-mono text-[10px] text-emerald">streaming playback</span>
-        </div>
-        {isLoading ? (
-          <div className="h-[240px] skeleton" />
-        ) : (
-          <LatencyTimelineChart data={timelineData} dbs={visibleDBs} />
-        )}
-      </div>
-
-      {resources?.length > 0 && (
-        <div className="card p-5">
-          <div className="relative z-10 mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Memory vs Latency Pressure</h3>
-            <Gauge size={16} className="text-emerald" />
-          </div>
-          <div className="relative z-10 grid grid-cols-1 gap-4 md:grid-cols-3">
-            {resources.map((r) => (
-              <div key={r.engine} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-300">{r.engine}</p>
-                  <Activity size={14} className="text-cyan" />
-                </div>
-                <p className="font-mono text-lg font-bold text-white">{r.cpu_percent?.toFixed(1)}% CPU</p>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full bg-gradient-primary rounded-full"
-                    style={{ width: `${Math.min((r.mem_usage_mb / r.mem_limit_mb) * 100, 100)}%` }}
-                  />
-                </div>
-                <p className="mt-2 font-mono text-xs text-slate-500">{r.mem_usage_mb?.toFixed(0)} / {r.mem_limit_mb?.toFixed(0)} MB</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </motion.div>
   )
 }
