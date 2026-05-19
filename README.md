@@ -19,7 +19,7 @@ FastAPI Backend (:8000)
   v
 Qdrant (:6333) | Weaviate (:8080) | Milvus (:19530)
   |
-  + Ollama (:11434) - nomic-embed-text, qwen2.5:0.5b
+  + Ollama (:11434) - nomic-embed-text, qwen2.5:1.5b
 ```
 
 Thư mục chính của dự án:
@@ -73,7 +73,7 @@ docker compose down -v
 
 Các thiết lập quan trọng để benchmark có thể được điều chỉnh trực tiếp trong file `src/config.py` hoặc override thông qua biến môi trường:
 
-- MOCK_MODE: Đặt bằng `True` để dùng vector giả lập và bỏ qua việc gọi Ollama thật (phù hợp để test luồng nhanh). Đặt bằng `False` khi cần chạy thực tế với mô hình nhúng `nomic-embed-text` và mô hình ngôn ngữ `qwen2.5:0.5b`.
+- MOCK_MODE: Đặt bằng `True` để dùng vector giả lập và bỏ qua việc gọi Ollama thật (phù hợp để test luồng nhanh). Đặt bằng `False` khi cần chạy thực tế với mô hình nhúng `nomic-embed-text` và mô hình ngôn ngữ `qwen2.5:1.5b`.
 - INDEX_PARAMS: Cấu hình tham số index HNSW dùng chung cho cả 3 database để đảm bảo tính công bằng khi benchmark:
   - Metric: COSINE
   - Index Type: HNSW

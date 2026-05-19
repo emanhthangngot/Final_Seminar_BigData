@@ -134,7 +134,7 @@ export default function Dashboard() {
                 <p className="text-[11px] text-slate-500">online</p>
               </div>
               <div>
-                <p className="font-mono text-lg font-bold text-white">{health?.rag?.model ?? 'qwen2.5:0.5b'}</p>
+                <p className="font-mono text-lg font-bold text-white">{health?.rag?.model ?? 'qwen2.5:1.5b'}</p>
                 <p className="text-[11px] text-slate-500">LLM</p>
               </div>
               <div>
