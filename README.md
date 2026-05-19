@@ -46,7 +46,7 @@ FastAPI Backend (:8000)
   v
 Qdrant (:6333) | Weaviate (:8080/:50051) | Milvus (:19530)
   |
-  + Ollama (:11434) - nomic-embed-text, qwen2.5:3b
+  + Ollama (:11434) - nomic-embed-text, qwen2.5:0.5b
 ```
 
 Thư mục chính:
@@ -644,7 +644,7 @@ Pull thủ công:
 
 ```bash
 docker compose exec ollama ollama pull nomic-embed-text
-docker compose exec ollama ollama pull qwen2.5:3b
+docker compose exec ollama ollama pull qwen2.5:0.5b
 ```
 
 ### 14.5. Hết dung lượng disk khi pull image/model hoặc Qdrant ghi WAL

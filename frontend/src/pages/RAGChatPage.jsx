@@ -281,7 +281,7 @@ export default function RAGChatPage() {
             </div>
             <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
               <p className="text-slate-400">llm</p>
-              <p className="mt-1 truncate font-mono text-slate-200">{health?.rag?.model ?? 'qwen2.5:3b'}</p>
+              <p className="mt-1 truncate font-mono text-slate-200">{health?.rag?.model ?? 'qwen2.5:0.5b'}</p>
             </div>
             <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
               <p className="text-slate-400">embedding</p>
