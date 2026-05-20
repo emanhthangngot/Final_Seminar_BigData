@@ -7,6 +7,9 @@ from core.db_clients.milvus import MilvusWrapper
 from core.utils.logger import logger
 
 
+EXPECTED_ENGINES = ("Qdrant", "Weaviate", "Milvus")
+
+
 class DatabaseService:
     def __init__(self):
         self._catalog: dict = {}
@@ -42,7 +45,7 @@ class DatabaseService:
         return self._catalog
 
     def health(self) -> dict[str, bool]:
-        return {name: True for name in self._catalog}
+        return {name: name in self._catalog for name in EXPECTED_ENGINES}
 
 
 db_service = DatabaseService()

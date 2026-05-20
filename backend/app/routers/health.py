@@ -7,9 +7,10 @@ router = APIRouter()
 
 @router.get("/health")
 def get_health():
+    databases = db_service.health()
     return {
-        "status": "ok",
-        "databases": db_service.health(),
+        "status": "ok" if all(databases.values()) else "degraded",
+        "databases": databases,
         "rag": {
             "mock_mode": MOCK_MODE,
             "ollama_base_url": OLLAMA_BASE_URL,
