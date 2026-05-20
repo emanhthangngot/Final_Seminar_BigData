@@ -26,7 +26,7 @@
                         ││ Index │││ Index   │││ Storage ││
                         │└───────┘│└─────────┘│└─────────┘│
                         ├─────────────────────────────────┤
-                        │      Gridstore (KV Engine)       │
+                        │  Memmap/On-Disk Storage Engine   │
                         │         WAL (Write-Ahead Log)    │
                         └─────────────────────────────────┘
                               RAM / Memmap / On-Disk
@@ -38,7 +38,7 @@
 |---|---|
 | **Rust Runtime** | Toàn bộ engine viết bằng Rust — memory-safe, zero-cost abstractions, không có GC pause |
 | **Segment** | Đơn vị lưu trữ tự trị: mỗi segment chứa vector storage + payload storage + index riêng |
-| **Gridstore** | Storage engine tự phát triển (thay thế RocksDB): gồm Tracker + Data Grid + Mask Layer + Gaps Layer, tối ưu cho truy xuất payload và sparse vector |
+| **Memmap/On-Disk Storage Engine** | Storage engine tự phát triển (in-house segment storage engine) thay thế RocksDB: lưu trữ payload và vector thưa thớt theo cấu trúc mảng tuần tự tùy biến. Hỗ trợ 2 chế độ: RAM (tốc độ cao) và Memmap (memory-mapped files, để OS quản lý caching) |
 | **HNSW Index** | Custom implementation với Filterable HNSW — filter metadata trực tiếp trong quá trình duyệt đồ thị |
 | **Payload Index** | Index cho metadata (keyword, integer, text, geo, datetime) — hỗ trợ on-disk storage |
 | **WAL** | Write-Ahead Log đảm bảo durability — data được ghi WAL trước rồi mới commit |
@@ -170,8 +170,8 @@ User Query
 
 **Tại sao Qdrant/Milvus không bằng ở điểm này?**
 - Qdrant hỗ trợ hybrid (dense + sparse vectors) nhưng cần setup riêng sparse vector, không có BM25 native
-- Milvus có BM25 nhưng tích hợp sau (từ 2025), không tự nhiên như Weaviate vốn thiết kế hybrid từ đầu
-- Weaviate chạy cả inverted index và HNSW **trong cùng query engine** → không cần stitch systems riêng lẻ
+- Milvus thực hiện hybrid search bằng cơ chế **Dense + Sparse Vector** (sử dụng mô hình như SPLADE, BGE-M3 để biến text thành sparse vector) — không dùng inverted index truyền thống cho BM25 như Weaviate. Cách tiếp cận này mạnh về mặt semantic nhưng không "native" bằng BM25F tích hợp sẵn
+- Weaviate chạy cả inverted index (BM25F) và HNSW **trong cùng query engine, cùng shard** → không cần stitch external systems hay embedding model riêng cho keyword search
 
 ### Module System — "Plugin Everything"
 
@@ -299,28 +299,45 @@ Knowhere là **engine thực thi vector search** nằm bên dưới Milvus, đó
 
 | Segment Type | Trạng thái | Đặc điểm |
 |---|---|---|
-| **Growing** | In-memory, đang nhận insert | Chưa build full index, dùng interim index hoặc brute-force |
-| **Sealed** | Persisted ra MinIO | Full indexed (HNSW/IVF/DiskANN), immutable |
+| **Growing** | In-memory, đang nhận insert | Chưa build full index, dùng interim index hoặc brute-force. **Có thể `search()` ngay lập tức** trên growing segment bằng brute-force scan |
+| **Sealed** | Persisted ra MinIO | Full indexed (HNSW/IVF/DiskANN), immutable, tốc độ search tối ưu |
 
-Lifecycle: `insert() → buffer in growing segment → flush() → sealed segment → build index → load() to Query Node`
+Lifecycle:
+```
+insert() → buffer vào Growing Segment (async, RAM)
+                  ↓
+        [search() khả dụng ngay — brute-force trên growing segment]
+                  ↓
+         flush() → đóng băng → Sealed Segment → ghi xuống MinIO
+                  ↓
+         build index (HNSW/IVF) trên sealed segment
+                  ↓
+         load() → nạp index vào Query Node RAM → search tối ưu
+```
+
+> **Lưu ý quan trọng:**
+> - `insert()` trong Milvus là **asynchronous** — dữ liệu chỉ đẩy vào Message Queue và Growing Segment (RAM). Thời gian đo ~2805ms trong benchmark có thể bao gồm overhead kết nối/khởi tạo client.
+> - Growing Segment **cho phép search() ngay lập tức** bằng brute-force, không cần chờ flush.
+> - `flush()` chỉ là để **ép hệ thống đóng băng segment** (Sealed) và ghi xuống MinIO nhằm chuẩn bị build index tối ưu tốc độ.
+> - ⚠️ **Cảnh báo**: Nếu gọi `flush()` liên tục với lượng data nhỏ, Milvus sẽ bị **phân mảnh file** (I/O amplification), tạo nhiều sealed segment nhỏ → giảm hiệu năng nghiêm trọng. Trong production nên để Milvus tự flush theo threshold.
 
 ### Collection Schema & Lifecycle
 
 | So sánh | Milvus | Qdrant | Weaviate |
 |---|---|---|---|
 | Schema | **Bắt buộc khai báo trước** (FieldSchema) | Schema-free (payload tự do) | Auto-schema (tự suy kiểu) |
-| Sau insert | `flush()` + `load()` **bắt buộc** | Sẵn sàng query ngay | Sẵn sàng query ngay |
+| Sau insert | Dữ liệu **searchable ngay** (brute-force trên growing segment). `flush()` + `load()` cần cho **tối ưu index** | Sẵn sàng query ngay (indexed) | Sẵn sàng query ngay (indexed) |
 | Trade-off | Tối ưu cho columnar storage, production governance | Flexible, nhanh prototype | Cân bằng |
 
 ### Chi phí thực đo (từ project benchmark)
 
 | Bước | Thời gian | Ghi chú |
 |---|---|---|
-| `insert()` (1000 chunks, 2 batches) | ~2805 ms | Batch insert |
-| `flush()` | ~2530 ms | **Bước đắt nhất** — persist buffer ra MinIO |
-| `load()` | ~343 ms | Load HNSW index vào RAM |
-| `search()` avg | ~6.88 ms | ANN query thuần |
-| **Tổng khởi tạo** | **~5678 ms** | vs Qdrant: insert → ready ngay |
+| `insert()` (1000 chunks, 2 batches) | ~2805 ms | Async batch insert — bao gồm overhead kết nối/client init |
+| `flush()` | ~2530 ms | Đóng băng growing segment → sealed, persist ra MinIO |
+| `load()` | ~343 ms | Load HNSW index vào Query Node RAM |
+| `search()` avg | ~6.88 ms | ANN query thuần (trên sealed+indexed segment) |
+| **Tổng lifecycle đầy đủ** | **~5678 ms** | Bao gồm cả build index — search brute-force khả dụng sớm hơn |
 
 ### Advanced Features
 
@@ -352,12 +369,12 @@ So sánh: Qdrant chỉ dùng ~79 MB → Milvus ~5x RAM hơn
 |---|---|---|---|
 | **Ngôn ngữ core** | Rust | Go | C++ (Knowhere) + Go (services) |
 | **Mô hình kiến trúc** | Monolithic (1 binary) | Monolithic (1 binary) | Microservices (disaggregated) |
-| **Storage engine** | Gridstore (custom KV) | LSM-Tree (custom) | MinIO/S3 (object storage) |
+| **Storage engine** | Memmap/On-Disk Segment Engine (custom) | LSM-Tree (custom) | MinIO/S3 (object storage) |
 | **Vector index** | Custom HNSW (Filterable) | HNSW (separate from LSM) | Knowhere (Faiss/HNSWlib/DiskANN) |
-| **Keyword search** | Sparse vectors + full-text filter | **BM25F native** (inverted index) | BM25 (tích hợp từ 2025) |
+| **Keyword search** | Sparse vectors + full-text filter | **BM25F native** (inverted index) | **Dense + Sparse Vector** (SPLADE/BGE-M3, từ v2.4+) |
 | **Filter strategy** | **Filterable HNSW + ACORN** (trong traversal) | Allowlist + adaptive brute-force | `expr` pre-filter (SQL-like) |
 | **Schema** | Schema-free (payload) | Auto-schema | **Strict schema** (khai báo trước) |
-| **Sau insert** | Ready ngay | Ready ngay | Cần `flush()` + `load()` |
+| **Sau insert** | Ready ngay (indexed) | Ready ngay (indexed) | Searchable ngay (brute-force); `flush()`+`load()` cho index tối ưu |
 | **Quantization** | Scalar, Product, Binary, Asymmetric | Binary, Product | Scalar, IVF-SQ8 |
 | **Containers cần** | 1 | 1 | 3+ (etcd, MinIO) |
 | **RAM idle** | ~79 MB | ~200-300 MB | ~398 MB |
@@ -402,7 +419,7 @@ So sánh: Qdrant chỉ dùng ~79 MB → Milvus ~5x RAM hơn
 ## Tham khảo
 
 1. Qdrant Architecture — https://qdrant.tech/documentation/concepts/
-2. Qdrant Gridstore — https://qdrant.tech/articles/gridstore/
+2. Qdrant Storage Architecture — https://qdrant.tech/documentation/concepts/storage/
 3. Qdrant Filterable HNSW — https://qdrant.tech/articles/filtrable-hnsw/
 4. Weaviate Architecture — https://weaviate.io/developers/weaviate/concepts/storage
 5. Weaviate Hybrid Search — https://weaviate.io/developers/weaviate/search/hybrid

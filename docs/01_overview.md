@@ -67,7 +67,7 @@ User Query → [Embedding Model] → Query Vector
 
 - **Qdrant**: Viết bằng Rust → latency cực thấp, memory-safe; tích hợp metadata filter trực tiếp vào HNSW traversal (Filterable HNSW).
 - **Weaviate**: Hybrid search native (BM25 + vector trong 1 API call); có module vectorizer/generative tích hợp sẵn.
-- **Milvus**: Kiến trúc phân tán tách rời storage-compute; scale được tới hàng **tỷ vector**; hỗ trợ GPU acceleration và DiskANN.
+- **Milvus**: Kiến trúc phân tán tách rời storage-compute; scale được tới hàng **tỷ vector**; hỗ trợ hybrid search qua Dense + Sparse Vector (SPLADE/BGE-M3), GPU acceleration và DiskANN.
 
 ---
 
