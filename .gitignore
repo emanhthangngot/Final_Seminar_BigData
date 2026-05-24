@@ -55,6 +55,7 @@ frontend/.vite/
 backend/__pycache__/
 .agents/
 screenshot/
+slide/
 
 # Embedding Caches
 data/.embed_cache/
