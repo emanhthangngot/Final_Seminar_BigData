@@ -1,0 +1,99 @@
+\section{Đánh giá thực nghiệm}
+
+\begin{frame}{Benchmark Fairness Protocol}
+	\begin{columns}
+		\column{0.52\textwidth}
+		\begin{block}{Controlled variables}
+			\begin{itemize}
+				\item Cùng corpus, chunk size, overlap và preprocessing.
+				\item Cùng embedding model và vector dimension.
+				\item Cùng query set, Top-K và random seed.
+				\item Cùng hardware envelope, Docker limits và warm-up policy.
+			\end{itemize}
+		\end{block}
+		\column{0.48\textwidth}
+		\begin{alertblock}{Không ép đồng nhất giả tạo}
+			Mỗi database có lifecycle và planner riêng; benchmark phải ghi rõ config thay vì che giấu khác biệt kiến trúc.
+		\end{alertblock}
+		\begin{exampleblock}{Metrics}
+			Latency p50/p95, RAM footprint, insert/build cost, Recall@K, MRR và DX score.
+		\end{exampleblock}
+	\end{columns}
+	\note{Benchmark công bằng không có nghĩa là ép mọi hệ thống chạy giống hệt nhau, vì kiến trúc của chúng khác nhau. Điều quan trọng là cùng dữ liệu, cùng query và cùng mục tiêu retrieval, đồng thời ghi rõ lifecycle riêng như flush/load của Milvus hoặc Hybrid Search của Weaviate.}
+\end{frame}
+
+\begin{frame}{Latency \& RAM Resource Telemetry}
+	\begin{table}
+		\centering
+		\caption{Telemetry snapshot theo tài liệu project.}
+		\resizebox{\textwidth}{!}{%
+		\begin{tabular}{lccc}
+			\hline
+			\textbf{Metric} & \textbf{Qdrant} & \textbf{Weaviate} & \textbf{Milvus} \\
+			\hline
+			RAM idle profile & $\sim$79 MB & $\sim$200--300 MB & $\sim$398 MB \\
+			Deployment overhead & thấp & trung bình & cao hơn do etcd/MinIO/MQ \\
+			Insert lifecycle & ready nhanh & ready nhanh & insert + flush + load cần tách riêng \\
+			Search latency & ổn định với filter & phụ thuộc hybrid alpha & tốt sau khi segments loaded \\
+			Operational complexity & thấp & trung bình & cao \\
+			\hline
+		\end{tabular}}
+	\end{table}
+	\begin{alertblock}{Milvus lifecycle cost}
+		Nguồn ghi nhận `insert()` khoảng 2805 ms, `flush()` khoảng 2530 ms, `load()` khoảng 343 ms và `search()` trung bình khoảng 6.88 ms cho snapshot thử nghiệm.
+	\end{alertblock}
+	\note{Các số liệu không nên được hiểu là chân lý tuyệt đối cho mọi workload. Chúng là snapshot của project để minh họa profile vận hành. Milvus có search tốt khi đã load index, nhưng full lifecycle có thêm chi phí flush/load. Qdrant có footprint nhỏ nhất trong snapshot.}
+\end{frame}
+
+\begin{frame}{Retrieval Accuracy: Recall@K \& MRR}
+	\begin{columns}
+		\column{0.48\textwidth}
+		\begin{exampleblock}{Metric definitions}
+			\[
+				Recall@K=\frac{\text{relevant chunks in Top-K}}{\text{all relevant chunks}}
+			\]
+			\[
+				MRR=\frac{1}{|Q|}\sum_{q\in Q}\frac{1}{\operatorname{rank}_{q}}
+			\]
+		\end{exampleblock}
+		\column{0.52\textwidth}
+		\begin{block}{Cách diễn giải trong RAG}
+			\begin{itemize}
+				\item Recall@K cao nghĩa là context đúng có mặt trong Top-K.
+				\item MRR cao nghĩa là context đúng xuất hiện sớm trong ranking.
+				\item p95 latency cần đọc cùng Recall@K để đánh giá production SLA.
+			\end{itemize}
+		\end{block}
+		\begin{alertblock}{Rủi ro}
+			Latency thấp nhưng retrieval sai làm LLM sinh answer không đáng tin cậy.
+		\end{alertblock}
+	\end{columns}
+	\note{Với RAG, metric quan trọng không chỉ là database trả lời nhanh. Nếu Top-K chunks không chứa evidence đúng, LLM sẽ không có cơ sở để trả lời. MRR đặc biệt quan trọng khi context window bị giới hạn và chỉ một vài chunks đầu được ưu tiên.}
+\end{frame}
+
+\begin{frame}{Accuracy-Speed Trade-off \& Pareto Frontier}
+	\begin{columns}
+		\column{0.48\textwidth}
+		\begin{block}{Các nút điều chỉnh}
+			\begin{itemize}
+				\item Tăng \texttt{efSearch} hoặc Top-K thường tăng Recall@K nhưng tăng latency.
+				\item Quantization giảm RAM nhưng cần rescoring để giữ accuracy.
+				\item Hybrid Search tăng robustness nhưng thêm chi phí fusion.
+				\item Filter strategy có thể làm tăng hoặc giảm latency tùy selectivity.
+			\end{itemize}
+		\end{block}
+		\column{0.52\textwidth}
+		\begin{figure}
+			\centering
+			\fbox{\begin{minipage}{0.9\linewidth}
+				\centering
+				Y-axis: Recall@K\\
+				X-axis: Latency p95\\
+				Goal: high recall, low latency\\
+				Pareto points: Qdrant / Weaviate / Milvus
+			\end{minipage}}
+			\caption{Pareto Frontier giữa accuracy và speed.}
+		\end{figure}
+	\end{columns}
+	\note{Pareto Frontier giúp tránh kết luận một chiều. Một cấu hình nhanh hơn nhưng Recall thấp hơn chưa chắc tốt. Một cấu hình chính xác hơn nhưng latency vượt SLA cũng không phù hợp. Cần chọn điểm cân bằng theo use case, corpus size và yêu cầu production.}
+\end{frame}

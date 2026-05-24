@@ -1,0 +1,48 @@
+\section{Kết luận}
+
+\begin{frame}{Developer Experience Score Matrix}
+	\begin{table}
+		\centering
+		\caption{DX matrix cho nhóm xây dựng RAG application.}
+		\resizebox{\textwidth}{!}{%
+		\begin{tabular}{lccc}
+			\hline
+			\textbf{Tiêu chí DX} & \textbf{Qdrant} & \textbf{Weaviate} & \textbf{Milvus} \\
+			\hline
+			Local setup & rất dễ & dễ & khó hơn \\
+			Dependency count & thấp & thấp-vừa & cao \\
+			Query API ergonomics & rõ ràng & rất tốt cho RAG & mạnh nhưng nghiêm ngặt \\
+			Schema evolution & linh hoạt payload & auto/schema-driven & strict FieldSchema \\
+			Observability burden & thấp & trung bình & cao \\
+			Production operations & nhẹ & vừa & nặng nhưng scale tốt \\
+			\hline
+		\end{tabular}}
+	\end{table}
+	\begin{block}{DX takeaway}
+		DX bao gồm setup, mental model, debugging, schema evolution, dependency graph và monitoring, không chỉ là số dòng code.
+	\end{block}
+	\note{Developer Experience là yếu tố thực dụng khi chọn Vector Database. Qdrant dễ đưa vào prototype và service nhỏ. Weaviate dễ xây RAG app có Hybrid Search. Milvus cần nhiều kiến thức vận hành hơn nhưng phù hợp khi scale và HA là yêu cầu trung tâm.}
+\end{frame}
+
+\begin{frame}{Verdict Decision Matrix \& Q\&A}
+	\begin{columns}
+		\column{0.62\textwidth}
+		\begin{exampleblock}{Khuyến nghị theo use case}
+			\begin{itemize}
+				\item \textbf{Qdrant}: filter-heavy RAG, multi-tenant payload, footprint thấp, deployment gọn.
+				\item \textbf{Weaviate}: Hybrid Search, BM25F + semantic retrieval, RAG app cần DX tốt.
+				\item \textbf{Milvus}: corpus rất lớn, High Availability, distributed production, GPU/DiskANN path.
+			\end{itemize}
+		\end{exampleblock}
+		\begin{alertblock}{Kết luận}
+			Không có ``best Vector Database'' tuyệt đối; lựa chọn đúng phụ thuộc workload, SLA, corpus size và năng lực vận hành.
+		\end{alertblock}
+		\column{0.38\textwidth}
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.82\linewidth]{thankyou}
+			\caption{Q\&A}
+		\end{figure}
+	\end{columns}
+	\note{Chốt lại ba lựa chọn. Nếu yêu cầu chính là filtered retrieval và footprint thấp, Qdrant là ứng viên mạnh. Nếu yêu cầu chính là kết hợp keyword và semantic trong RAG, Weaviate nổi bật. Nếu yêu cầu chính là scale lớn và HA, Milvus đáng đầu tư.}
+\end{frame}

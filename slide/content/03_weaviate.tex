@@ -1,0 +1,84 @@
+\section{Weaviate}
+
+\begin{frame}{Weaviate: AI-native Modular Schema}
+	\begin{columns}
+		\column{0.5\textwidth}
+		\begin{block}{Shard internals}
+			\begin{itemize}
+				\item Object Store dạng LSM-tree lưu raw objects và metadata.
+				\item HNSW Vector Index tách khỏi LSM để tránh merge complexity.
+				\item Inverted Index hỗ trợ BM25, filtering và Roaring Bitmap.
+				\item WAL ghi mọi write trước khi commit.
+			\end{itemize}
+		\end{block}
+		\column{0.5\textwidth}
+		\begin{figure}
+			\centering
+			\fbox{\begin{minipage}{0.9\linewidth}
+				\centering
+				Weaviate Server\\
+				REST / GraphQL\\
+				Module System\\
+				Query Engine\\
+				Object Store + Vector Index + Inverted Index
+			\end{minipage}}
+			\caption{Ba storage path trong một Weaviate shard.}
+		\end{figure}
+	\end{columns}
+	\note{Weaviate không chỉ là ANN engine. Nó lưu object, vector và inverted index trong cùng shard, nhờ đó hỗ trợ cả semantic retrieval và keyword retrieval. Kiến trúc này giải thích vì sao Weaviate có Hybrid Search tự nhiên hơn nhiều hệ thống chỉ tập trung vào dense vector.}
+\end{frame}
+
+\begin{frame}{Native Hybrid Search: BM25F + Vector}
+	\begin{columns}
+		\column{0.52\textwidth}
+		\begin{block}{Hai loại tín hiệu}
+			\begin{itemize}
+				\item \textbf{BM25F}: exact keyword, tên riêng, mã lỗi, thuật ngữ hiếm; có field weighting.
+				\item \textbf{Semantic Vector}: paraphrase, đồng nghĩa, truy vấn theo ý nghĩa.
+				\item \textbf{Hybrid Search}: fusion hai ranked lists trong cùng Query Engine.
+			\end{itemize}
+		\end{block}
+		\column{0.48\textwidth}
+		\begin{exampleblock}{Alpha parameter}
+			\begin{itemize}
+				\item $\alpha=0.0$: pure BM25.
+				\item $\alpha=0.5$: balanced hybrid.
+				\item $\alpha=1.0$: pure vector search.
+			\end{itemize}
+		\end{exampleblock}
+		\begin{alertblock}{Field weighting}
+			Title hoặc heading có thể được ưu tiên hơn body text trong BM25F.
+		\end{alertblock}
+	\end{columns}
+	\note{Hybrid Search giải quyết điểm yếu riêng của từng phương pháp. Vector search có thể bỏ sót mã định danh chính xác; BM25 có thể bỏ sót paraphrase. Weaviate cho phép kết hợp hai tín hiệu này trong một API call, rất phù hợp RAG trên tài liệu kỹ thuật.}
+\end{frame}
+
+\begin{frame}{RRF Fusion Mathematics}
+	\begin{exampleblock}{Reciprocal Rank Fusion}
+		\[
+			\operatorname{score}(d)=\sum_{i=1}^{m}\frac{1}{k+\operatorname{rank}_{i}(d)}
+		\]
+	\end{exampleblock}
+	\begin{columns}
+		\column{0.52\textwidth}
+		\begin{table}
+			\centering
+			\caption{Ví dụ fusion từ BM25 và vector ranking.}
+			\scriptsize
+			\begin{tabular}{lccc}
+				\hline
+				Document & BM25 rank & Vector rank & Ý nghĩa \\
+				\hline
+				$d_1$ & 1 & 5 & keyword rất mạnh \\
+				$d_2$ & 8 & 1 & semantic rất mạnh \\
+				$d_3$ & 20 & 18 & yếu ở cả hai \\
+				\hline
+			\end{tabular}
+		\end{table}
+		\column{0.48\textwidth}
+		\begin{block}{RRF vs score normalization}
+			RRF dùng rank position thay vì raw score, nên ổn định khi BM25 score và cosine similarity khác thang đo.
+		\end{block}
+	\end{columns}
+	\note{Công thức RRF cộng đóng góp từ nhiều ranked lists. Document đứng càng cao ở một nguồn thì đóng góp càng lớn. Cách này tránh vấn đề phải chuẩn hóa điểm BM25 và vector similarity vốn có bản chất rất khác nhau.}
+\end{frame}
