@@ -1,0 +1,103 @@
+\section{Milvus}
+
+\begin{frame}{Milvus: Kiến trúc phân tán shared-storage}
+	\begin{columns}
+		\column{0.4\textwidth}
+		\begin{block}{Bốn lớp kiến trúc}
+			\begin{itemize}
+				\item Proxy nhận request.
+				\item Coordinator điều phối metadata.
+				\item Worker xử lý ingest/search/index.
+				\item Storage tách khỏi compute.
+			\end{itemize}
+		\end{block}
+		\begin{alertblock}{Tradeoff}
+			Scale tốt hơn, nhưng vận hành phức tạp hơn Qdrant/Weaviate.
+		\end{alertblock}
+		\column{0.6\textwidth}
+		\begin{figure}
+			\centering
+				\begin{tikzpicture}[node distance=0.36cm, scale=0.78, transform shape]
+					\node[flowbox, fill=softorange, draw=milvusorange!70, minimum width=5.3cm] (proxy) {Proxy / Access Layer};
+					\node[flowbox, below=of proxy, fill=softblue, draw=qdrantblue!55, minimum width=5.3cm] (coord) {Coordinators: Root / Data / Query};
+					\node[flowbox, below left=0.52cm and -0.18cm of coord, minimum width=1.7cm] (data) {DataNode};
+					\node[flowbox, below=0.52cm of coord, minimum width=1.7cm] (query) {QueryNode};
+					\node[flowbox, below right=0.52cm and -0.18cm of coord, minimum width=1.7cm] (index) {IndexNode};
+					\node[flowbox, below=1.15cm of query, fill=softgreen, draw=weaviategreen!55, minimum width=5.3cm] (storage) {Object Storage + MQ + etcd};
+					\draw[flowarrow] (proxy) -- (coord);
+					\draw[flowarrow] (coord) -- (data);
+					\draw[flowarrow] (coord) -- (query);
+					\draw[flowarrow] (coord) -- (index);
+					\draw[flowarrow] (data) -- (storage);
+					\draw[flowarrow] (query) -- (storage);
+					\draw[flowarrow] (index) -- (storage);
+				\end{tikzpicture}
+			\caption{Milvus tách compute khỏi storage.}
+		\end{figure}
+	\end{columns}
+	\note{Milvus được thiết kế theo hướng distributed-first. Proxy nhận request, coordinator quản lý metadata và topology, worker nodes xử lý ingestion, search và build index. Storage layer tách riêng giúp hệ thống mở rộng dung lượng và compute độc lập hơn.}
+\end{frame}
+
+\begin{frame}{Scale phân tán \& Knowhere Engine}
+	\begin{columns}
+		\column{0.5\textwidth}
+		\begin{block}{Scale đúng điểm nghẽn}
+			Search chậm $\rightarrow$ QueryNode\\
+			Ingest chậm $\rightarrow$ DataNode\\
+			Build index chậm $\rightarrow$ IndexNode\\
+			Storage tăng $\rightarrow$ MinIO/S3
+		\end{block}
+		\column{0.5\textwidth}
+		\begin{exampleblock}{Knowhere}
+			Abstraction layer cho Faiss, HNSWlib, ScaNN, DiskANN; hỗ trợ SIMD path và GPU acceleration khi có CUDA.
+		\end{exampleblock}
+	\end{columns}
+	\takeaway{Qdrant/Weaviate đơn giản hơn; Milvus đáng giá khi corpus và concurrency rất lớn.}
+	\note{Disaggregated architecture cho phép xử lý đúng điểm nghẽn thay vì scale toàn bộ hệ thống. Knowhere làm Milvus linh hoạt về execution engine và index type. Đổi lại là hệ thống có nhiều service và cần năng lực vận hành cao hơn.}
+\end{frame}
+
+\begin{frame}{Vòng đời dữ liệu \& bẫy vận hành}
+	\begin{block}{Vòng đời chuẩn}
+		\centering
+		\begin{tikzpicture}[node distance=0.16cm, scale=0.74, transform shape]
+				\node[flowbox, fill=milvusorange!10, draw=milvusorange!65] (insert) {\texttt{insert()}};
+				\node[flowbox, right=of insert] (grow) {Segment\\đang ghi};
+				\node[flowbox, right=of grow] (flush) {\texttt{flush()}};
+				\node[flowbox, right=of flush] (sealed) {Segment\\đã đóng};
+				\node[flowbox, right=of sealed] (index) {Build\\index};
+				\node[flowbox, right=of index] (load) {\texttt{load()}};
+				\node[flowbox, right=of load, fill=weaviategreen!10, draw=weaviategreen!65] (search) {\texttt{search()}};
+				\draw[flowarrow] (insert.east) -- (grow.west);
+				\draw[flowarrow] (grow.east) -- (flush.west);
+				\draw[flowarrow] (flush.east) -- (sealed.west);
+				\draw[flowarrow] (sealed.east) -- (index.west);
+				\draw[flowarrow] (index.east) -- (load.west);
+				\draw[flowarrow] (load.east) -- (search.west);
+		\end{tikzpicture}
+	\end{block}
+	\begin{exampleblock}{Growing vs Sealed Segment}
+		Growing Segment có thể searchable bằng brute-force; Sealed Segment được persist ra object storage và có full index. \textbf{Lưu ý:} gọi \texttt{flush()} quá thường xuyên với batch nhỏ tạo nhiều sealed segments, gây I/O amplification và giảm throughput.
+	\end{exampleblock}
+	\note{Milvus có lifecycle rõ ràng hơn hai hệ thống còn lại. Insert thường là asynchronous, flush đóng segment, load đưa index vào QueryNode RAM. Khi benchmark, cần tách riêng insert, flush, load và search để tránh kết luận sai về latency.}
+\end{frame}
+
+\begin{frame}{Milvus HA \& khả năng chịu lỗi}
+	\begin{columns}
+		\column{0.5\textwidth}
+		\begin{block}{Các cơ chế HA}
+			\begin{itemize}
+				\item etcd quorum cho metadata consistency.
+				\item Coordinator failover qua service discovery.
+				\item QueryNode replica cho serving availability.
+				\item Message Queue lưu ingestion stream và WAL-like durability.
+			\end{itemize}
+		\end{block}
+		\column{0.5\textwidth}
+		\begin{exampleblock}{Tính năng nâng cao}
+			DiskANN cho dataset vượt RAM, Time Travel theo timestamp, CDC cho replication, GPU Index cho build/search acceleration.
+		\end{exampleblock}
+		\vspace{0.15cm}
+		\textbf{Chi phí production:} HA cần monitoring, backup policy, resource planning và version compatibility.
+	\end{columns}
+	\note{Milvus phù hợp enterprise RAG hoặc corpus rất lớn, nơi High Availability và scale độc lập quan trọng hơn sự đơn giản. Các thành phần như etcd, Message Queue và replica giúp chịu lỗi, nhưng đồng thời làm tăng chi phí vận hành.}
+\end{frame}

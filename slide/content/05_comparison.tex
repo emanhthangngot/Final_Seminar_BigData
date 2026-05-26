@@ -1,0 +1,57 @@
+\section{So sánh}
+
+\begin{frame}{Ma trận so sánh kiến trúc}
+	\begin{columns}[T]
+		\column{0.33\textwidth}
+		\begin{block}{Qdrant}
+			\textbf{Filtered performance}\\[0.08cm]
+			Single binary, payload index, filterable HNSW, triển khai nhẹ.
+		\end{block}
+		\column{0.33\textwidth}
+		\begin{exampleblock}{Weaviate}
+			\textbf{Hybrid RAG ergonomics}\\[0.08cm]
+			Object + vector + inverted index trong cùng schema-driven engine.
+		\end{exampleblock}
+		\column{0.33\textwidth}
+		\begin{alertblock}{Milvus}
+			\textbf{Distributed scale}\\[0.08cm]
+			Proxy, coordinators, workers, object storage, HA và Knowhere.
+		\end{alertblock}
+	\end{columns}
+	\takeaway{Câu hỏi đúng không phải "DB nào tốt nhất", mà là "ràng buộc nào quan trọng nhất".}
+	\note{Ma trận này rút gọn các khác biệt quan trọng nhất. Qdrant và Weaviate dễ triển khai hơn vì ít dependency. Milvus phức tạp hơn nhưng thiết kế cho scale lớn. Weaviate nổi bật vì có inverted index/BM25F native trong cùng query engine.}
+\end{frame}
+
+\begin{frame}{Chiến lược Vector Quantization}
+	\begin{columns}
+		\column{0.46\textwidth}
+		\begin{exampleblock}{Kỹ thuật nén}
+			\begin{itemize}
+				\item Scalar: float32 $\rightarrow$ uint8.
+				\item Product: chia vector thành sub-vectors.
+				\item Binary: vector $\rightarrow$ 1-bit đại diện.
+			\end{itemize}
+		\end{exampleblock}
+		\begin{alertblock}{Con số đáng nhớ}
+			Qdrant nhấn mạnh Binary Quantization có thể tăng tốc comparison lên đến \textbf{40x} với trade-off Recall cần đo lại.
+		\end{alertblock}
+		\column{0.54\textwidth}
+			\begin{table}
+				\centering
+				\tiny
+				\resizebox{\linewidth}{!}{%
+				\begin{tabular}{lccc}
+					\hline
+					\textbf{Kỹ thuật} & \textbf{Qdrant} & \textbf{Weaviate} & \textbf{Milvus} \\
+				\hline
+				Scalar Quantization & \cmark & \xmark & \cmark \\
+				Product Quantization & \cmark & \cmark & \cmark \\
+				Binary Quantization & \cmark & \cmark & \xmark \\
+				Asymmetric / rescoring control & \cmark & \cmark & \cmark \\
+					Disk-oriented vector search & \cmark & \xmark & \cmark \\
+					\hline
+				\end{tabular}}
+			\end{table}
+	\end{columns}
+	\note{Quantization là chiến lược quan trọng khi embedding corpus lớn làm RAM trở thành bottleneck. Tuy nhiên, giảm bộ nhớ thường đi kèm rủi ro giảm Recall@K. Vì vậy mọi cấu hình quantization phải được đánh giá lại bằng accuracy metrics thay vì chỉ nhìn RAM savings.}
+\end{frame}

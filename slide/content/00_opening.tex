@@ -1,0 +1,63 @@
+\section{Giới thiệu}
+
+\begin{frame}[plain]
+	\centering
+	\vspace{-0.05cm}
+	{\tiny\bfseries ĐẠI HỌC QUỐC GIA TP.HCM}\\[0.035cm]
+	{\tiny\bfseries TRƯỜNG ĐẠI HỌC KHOA HỌC TỰ NHIÊN}\\[0.035cm]
+	{\tiny\bfseries KHOA CÔNG NGHỆ THÔNG TIN}\\[0.12cm]
+	\includegraphics[width=0.145\paperwidth]{hcmus-logo}\\[0.14cm]
+	{\large\bfseries Seminar Cuối Kì}\\[0.04cm]
+	{\scriptsize Môn học: Nhập môn Dữ liệu lớn}\\[0.14cm]
+	\begin{beamercolorbox}[wd=0.86\paperwidth,center,rounded=true,shadow=true,sep=0.13cm]{frametitle}
+		{\Large\bfseries A triple of Vectorstore}\\[0.06cm]
+		{\normalsize\bfseries Qdrant, Weaviate, and Milvus}\\[0.05cm]
+		{\scriptsize Chủ đề 22 -- NO1: Vector Store cho RAG workflows}
+	\end{beamercolorbox}
+	\vspace{0.24cm}
+	\begin{columns}[T,totalwidth=0.82\paperwidth]
+		\column{0.52\paperwidth}
+		\raggedright
+		{\scriptsize\bfseries Sinh viên thực hiện:}\\[0.08cm]
+		{\scriptsize
+		\renewcommand{\arraystretch}{1.16}
+		\begin{tabular}{@{}l@{}}
+			23120099 -- Lê Xuân Trí\\
+			23120185 -- Nguyễn Hồ Anh Tuấn\\
+			23120166 -- Trần Hữu Kim Thành\\
+			23120165 -- Trần Lê Trung Trực
+		\end{tabular}}
+		\column{0.3\paperwidth}
+		\raggedright
+		{\scriptsize
+		\renewcommand{\arraystretch}{1.3}
+		\begin{tabular}{@{}l@{}}
+			\textbf{Nhóm:} Group 4T\\[0.08cm]
+			\textbf{Giảng viên hướng dẫn:}\\
+			Thầy Trần Huy Bân
+		\end{tabular}}
+	\end{columns}
+	\vfill
+	{\tiny Ngày 25 tháng 5 năm 2026}
+	\vspace{0.04cm}
+	\note{Mở đầu bằng bối cảnh: các hệ thống RAG hiện đại phụ thuộc mạnh vào tầng retrieval. Mục tiêu của bộ slide là phân tích ba Vector Database phổ biến theo kiến trúc, khả năng retrieval, chi phí vận hành và tiêu chí chọn lựa cho production.}
+\end{frame}
+
+\begin{frame}{Mục lục}
+	\begin{columns}
+		\column{0.46\textwidth}
+		\tableofcontents
+		\column{0.54\textwidth}
+		\begin{block}{Mục tiêu thuyết trình}
+			Phân tích \textbf{Qdrant}, \textbf{Weaviate} và \textbf{Milvus} như ba lựa chọn kỹ thuật tiêu biểu cho tầng retrieval trong hệ thống RAG.
+		\end{block}
+		\begin{exampleblock}{Mạch trình bày}
+			\begin{itemize}
+				\item Vai trò của Vector Database trong kiến trúc RAG.
+				\item Kiến trúc và kỹ thuật đặc trưng của từng công cụ.
+				\item So sánh, benchmark và tiêu chí lựa chọn cho production.
+			\end{itemize}
+		\end{exampleblock}
+	\end{columns}
+	\note{Giới thiệu cấu trúc bộ slide như một câu chuyện kỹ thuật: bắt đầu từ bài toán RAG, đi vào từng kiến trúc, sau đó so sánh bằng feature matrix và benchmark protocol. Trọng tâm là các quyết định kỹ thuật ảnh hưởng đến retrieval quality, latency và vận hành production.}
+\end{frame}

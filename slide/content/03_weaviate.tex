@@ -1,0 +1,88 @@
+\section{Weaviate}
+
+\begin{frame}{Weaviate: schema mô-đun cho ứng dụng RAG}
+	\begin{columns}
+		\column{0.42\textwidth}
+		\begin{block}{Ba chỉ mục cùng tồn tại}
+			\begin{itemize}
+				\item Object Store: dữ liệu và metadata.
+				\item HNSW: semantic retrieval.
+				\item Inverted Index: BM25 và filter.
+			\end{itemize}
+		\end{block}
+		\begin{exampleblock}{ML-native}
+			Hỗ trợ workflow gần ML/RAG app, multimodal và tích hợp với hệ sinh thái PyTorch/TensorFlow.
+		\end{exampleblock}
+		\column{0.58\textwidth}
+		\begin{figure}
+			\centering
+				\begin{tikzpicture}[node distance=0.38cm, scale=0.74, transform shape]
+					\node[flowbox, fill=softgreen, draw=weaviategreen!70, minimum width=5.2cm] (query) {Query Engine};
+					\node[flowbox, below left=0.55cm and -0.1cm of query, fill=softblue, draw=qdrantblue!55, minimum width=1.72cm] (obj) {Object\\Store};
+					\node[flowbox, below=0.55cm of query, fill=softgreen, draw=weaviategreen!70, minimum width=1.72cm] (hnsw) {Vector\\HNSW};
+					\node[flowbox, below right=0.55cm and -0.1cm of query, fill=softorange, draw=milvusorange!55, minimum width=1.72cm] (bm25) {BM25\\Index};
+					\node[flowbox, below=1.18cm of hnsw, minimum width=5.2cm] (fusion) {Hybrid Fusion};
+					\draw[flowarrow] (query) -- (obj);
+					\draw[flowarrow] (query) -- (hnsw);
+					\draw[flowarrow] (query) -- (bm25);
+					\draw[flowarrow] (obj) -- (fusion);
+					\draw[flowarrow] (hnsw) -- (fusion);
+					\draw[flowarrow] (bm25) -- (fusion);
+				\end{tikzpicture}
+			\caption{Keyword và semantic trong cùng query engine.}
+		\end{figure}
+	\end{columns}
+	\note{Weaviate không chỉ là ANN engine. Nó lưu object, vector và inverted index trong cùng shard, nhờ đó hỗ trợ cả semantic retrieval và keyword retrieval. Kiến trúc này giải thích vì sao Weaviate có Hybrid Search tự nhiên hơn nhiều hệ thống chỉ tập trung vào dense vector.}
+\end{frame}
+
+\begin{frame}{Hybrid Search: kết hợp keyword và semantic retrieval}
+	\begin{columns}
+		\column{0.34\textwidth}
+		\begin{block}{BM25F}
+			Mạnh với keyword chính xác, tên riêng, mã lỗi, thuật ngữ hiếm.
+		\end{block}
+		\column{0.34\textwidth}
+		\begin{exampleblock}{Vector}
+			Mạnh với paraphrase, đồng nghĩa, truy vấn theo ý nghĩa.
+		\end{exampleblock}
+		\column{0.32\textwidth}
+		\begin{alertblock}{$\alpha$}
+			$0.0$ = keyword\\
+			$0.5$ = cân bằng\\
+			$1.0$ = vector
+		\end{alertblock}
+	\end{columns}
+	\takeaway{Weaviate phù hợp khi tài liệu vừa cần exact terms, vừa cần semantic similarity.}
+	\note{Hybrid Search giải quyết điểm yếu riêng của từng phương pháp. Vector search có thể bỏ sót mã định danh chính xác; BM25 có thể bỏ sót paraphrase. Weaviate cho phép kết hợp hai tín hiệu này trong một API call, rất phù hợp RAG trên tài liệu kỹ thuật.}
+\end{frame}
+
+\begin{frame}{RRF: hợp nhất hai bảng xếp hạng}
+	\begin{exampleblock}{Reciprocal Rank Fusion}
+		\[
+			\operatorname{score}(d)=\sum_{i=1}^{m}\frac{1}{k+\operatorname{rank}_{i}(d)}
+		\]
+	\end{exampleblock}
+	\begin{columns}
+		\column{0.52\textwidth}
+			\begin{table}
+				\centering
+				\caption{Ví dụ fusion từ BM25 và vector ranking.}
+				\scriptsize
+				\resizebox{\linewidth}{!}{%
+				\begin{tabular}{lccc}
+					\hline
+					Document & BM25 rank & Vector rank & Ý nghĩa \\
+				\hline
+				$d_1$ & 1 & 5 & keyword rất mạnh \\
+				$d_2$ & 8 & 1 & semantic rất mạnh \\
+					$d_3$ & 20 & 18 & yếu ở cả hai \\
+					\hline
+				\end{tabular}}
+			\end{table}
+		\column{0.48\textwidth}
+		\begin{block}{Rank position thay cho raw score}
+			BM25 score và cosine similarity khác thang đo; RRF dùng vị trí xếp hạng nên ổn định hơn khi hợp nhất hai nguồn tín hiệu.
+		\end{block}
+	\end{columns}
+	\note{Công thức RRF cộng đóng góp từ nhiều ranked lists. Document đứng càng cao ở một nguồn thì đóng góp càng lớn. Cách này tránh vấn đề phải chuẩn hóa điểm BM25 và vector similarity vốn có bản chất rất khác nhau.}
+\end{frame}

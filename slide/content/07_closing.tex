@@ -1,0 +1,45 @@
+\section{Kết luận}
+
+\begin{frame}{Ma trận Developer Experience}
+	\begin{table}
+		\centering
+		\caption{Ma trận DX cho nhóm xây dựng RAG application.}
+		\resizebox{\textwidth}{!}{%
+		\begin{tabular}{lccc}
+			\hline
+			\textbf{Tiêu chí DX} & \textbf{Qdrant} & \textbf{Weaviate} & \textbf{Milvus} \\
+			\hline
+				Thiết lập local & Rất dễ & Dễ & Khó hơn \\
+				Số lượng dependency & Thấp & Thấp-vừa & Cao \\
+				Độ dễ dùng Query API & Rõ ràng & Rất tốt cho RAG & Mạnh nhưng nghiêm ngặt \\
+				Tiến hóa schema & Linh hoạt payload & Auto/schema-driven & Strict FieldSchema \\
+				Gánh nặng observability & Thấp & Trung bình & Cao \\
+				Vận hành production & Nhẹ & Vừa & Nặng nhưng scale tốt \\
+			\hline
+		\end{tabular}}
+	\end{table}
+	\begin{block}{Kết luận DX}
+		DX bao gồm setup, mental model, debugging, schema evolution, dependency graph và monitoring, không chỉ là số dòng code.
+	\end{block}
+	\note{Developer Experience là yếu tố thực dụng khi chọn Vector Database. Qdrant dễ đưa vào prototype và service nhỏ. Weaviate dễ xây RAG app có Hybrid Search. Milvus cần nhiều kiến thức vận hành hơn nhưng phù hợp khi scale và HA là yêu cầu trung tâm.}
+\end{frame}
+
+\begin{frame}{Ma trận quyết định cuối cùng}
+	\footnotesize
+	\begin{exampleblock}{Khuyến nghị theo use case}
+		\begin{itemize}
+			\item \textbf{Qdrant}: filter-heavy RAG, multi-tenant payload, footprint thấp, triển khai nhẹ.
+			\item \textbf{Weaviate}: Hybrid Search, BM25F + semantic retrieval, RAG app cần DX tốt.
+			\item \textbf{Milvus}: corpus rất lớn, High Availability, distributed production, GPU/DiskANN path.
+		\end{itemize}
+	\end{exampleblock}
+	\begin{alertblock}{Kết luận}
+		Không có ``best Vector Database'' tuyệt đối; lựa chọn đúng phụ thuộc workload, SLA, corpus size và năng lực vận hành.
+	\end{alertblock}
+	\note{Chốt lại ba lựa chọn. Nếu yêu cầu chính là filtered retrieval và footprint thấp, Qdrant là ứng viên mạnh. Nếu yêu cầu chính là kết hợp keyword và semantic trong RAG, Weaviate nổi bật. Nếu yêu cầu chính là scale lớn và HA, Milvus đáng đầu tư.}
+\end{frame}
+
+\begin{frame}[plain]
+	\centering
+	\includegraphics[height=\paperheight]{thankyou}
+\end{frame}
