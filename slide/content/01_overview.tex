@@ -57,6 +57,7 @@
 \end{frame}
 
 \begin{frame}{Hệ thống demo: từ benchmark đến dashboard}
+	\scriptsize
 	\begin{columns}[T]
 		\column{0.43\textwidth}
 		\begin{block}{Không chỉ là slide lý thuyết}
@@ -67,31 +68,32 @@
 			\end{itemize}
 		\end{block}
 		\begin{exampleblock}{Fair HNSW config}
-			Cosine, $M=16$, $ef\_construction=128$, $ef\_search=64$.
+			Cosine; $M=16$; $ef\_construction=128$; $ef\_search=64$.
 		\end{exampleblock}
 		\column{0.57\textwidth}
 		\centering
-		\includegraphics[width=0.96\linewidth,trim=0 700 0 0,clip]{dashboard}
+		\includegraphics[width=0.92\linewidth,trim=0 700 0 0,clip]{dashboard}
 	\end{columns}
 	\note{Slide này đáp ứng gap trong review: nhấn mạnh nhóm có sản phẩm full-stack thật, không chỉ phân tích giấy. 3D giúp người xem hình dung embedding space; các kết luận vẫn dựa trên metric benchmark.}
 \end{frame}
 
 \begin{frame}{Ba hệ quản trị Vector Database tiêu biểu}
+	\small
 	\begin{columns}[T]
 		\column{0.33\textwidth}
 		\begin{block}{Qdrant}
-			\textbf{Rust, 2021}\\
-			Filtered retrieval, payload index, quantization.
+			\equalbox{1.65cm}{\textbf{Rust, 2021}\\
+			Filtered retrieval; payload index; quantization.}
 		\end{block}
 		\column{0.33\textwidth}
 		\begin{exampleblock}{Weaviate}
-			\textbf{Go, 2019}\\
-			Hybrid Search, schema-driven, ML/RAG-native.
+			\equalbox{1.65cm}{\textbf{Go, 2019}\\
+			Hybrid Search; schema-driven; RAG-native.}
 		\end{exampleblock}
 		\column{0.33\textwidth}
 		\begin{alertblock}{Milvus}
-			\textbf{Go + C++, 2019}\\
-			Distributed scale, Knowhere, HA.
+			\equalbox{1.65cm}{\textbf{Go + C++, 2019}\\
+			Distributed scale; Knowhere; HA.}
 		\end{alertblock}
 	\end{columns}
 	\takeaway{Ba công cụ giải cùng bài toán vector search, nhưng tối ưu cho ba ràng buộc khác nhau.}
@@ -99,21 +101,22 @@
 \end{frame}
 
 \begin{frame}{Độ phổ biến và cộng đồng GitHub}
+	\small
 	\begin{columns}[T]
 		\column{0.33\textwidth}
 		\begin{block}{Qdrant}
-			{\Large $\sim$31.4K}\\
-			Tăng nhanh nhờ làn sóng RAG và AI agents.
+			\equalbox{1.8cm}{{\Large $\sim$31.4K}\\
+			Tăng nhanh nhờ làn sóng RAG và AI agents.}
 		\end{block}
 		\column{0.33\textwidth}
 		\begin{block}{Weaviate}
-			{\Large $\sim$16.2K}\\
-			Cộng đồng ổn định, mạnh về DX và Hybrid Search.
+			\equalbox{1.8cm}{{\Large $\sim$16.2K}\\
+			Cộng đồng ổn định, mạnh về DX và Hybrid Search.}
 		\end{block}
 		\column{0.33\textwidth}
 		\begin{block}{Milvus}
-			{\Large $\sim$44.4K}\\
-			Lâu đời, enterprise lớn, LF AI \& Data.
+			\equalbox{1.8cm}{{\Large $\sim$44.4K}\\
+			Lâu đời, enterprise lớn, LF AI \& Data.}
 		\end{block}
 	\end{columns}
 	\takeaway{GitHub stars cho thấy tín hiệu cộng đồng, không thay thế benchmark latency hay Recall@K.}
@@ -145,18 +148,19 @@
 \end{frame}
 
 \begin{frame}{Free tier cloud và giới hạn thử nghiệm}
+	\small
 	\begin{columns}[T]
 		\column{0.33\textwidth}
 		\begin{block}{Qdrant Cloud}
-			1 node, khoảng 1GB RAM và 4GB storage.
+			\equalbox{1.35cm}{1 node, khoảng 1GB RAM và 4GB storage.}
 		\end{block}
 		\column{0.33\textwidth}
 		\begin{block}{Weaviate Cloud}
-			Sandbox 14 ngày, phù hợp thử nghiệm ngắn.
+			\equalbox{1.35cm}{Sandbox 14 ngày, phù hợp thử nghiệm ngắn.}
 		\end{block}
 		\column{0.33\textwidth}
 		\begin{block}{Zilliz Cloud}
-			Free cluster cho khoảng 1M vectors hoặc 5GB storage.
+			\equalbox{1.35cm}{Free cluster cho khoảng 1M vectors hoặc 5GB storage.}
 		\end{block}
 	\end{columns}
 	\takeaway{Free tier giúp prototype; production cost chủ yếu nằm ở RAM, storage, compute, backup và SLA.}

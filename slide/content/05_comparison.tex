@@ -1,21 +1,23 @@
 \section{So sánh}
 
 \begin{frame}{Ma trận so sánh kiến trúc}
+	\small
+	\vspace{-0.15cm}
 	\begin{columns}[T]
 		\column{0.33\textwidth}
 		\begin{block}{Qdrant}
-			\textbf{Filtered performance}\\[0.08cm]
-			Single binary, payload index, filterable HNSW, triển khai nhẹ.
+			\equalbox{1.85cm}{\textbf{Filtered performance}\\[0.06cm]
+			Single binary; payload index; filterable HNSW.}
 		\end{block}
 		\column{0.33\textwidth}
 		\begin{exampleblock}{Weaviate}
-			\textbf{Hybrid RAG ergonomics}\\[0.08cm]
-			Object + vector + inverted index trong cùng schema-driven engine.
+			\equalbox{1.85cm}{\textbf{Hybrid RAG ergonomics}\\[0.06cm]
+			Object, vector và inverted index trong cùng engine.}
 		\end{exampleblock}
 		\column{0.33\textwidth}
 		\begin{alertblock}{Milvus}
-			\textbf{Distributed scale}\\[0.08cm]
-			Proxy, coordinators, workers, object storage, HA và Knowhere.
+			\equalbox{1.85cm}{\textbf{Distributed scale}\\[0.06cm]
+			Proxy, coordinators, workers, object storage và HA.}
 		\end{alertblock}
 	\end{columns}
 	\takeaway{Câu hỏi đúng không phải "DB nào tốt nhất", mà là "ràng buộc nào quan trọng nhất".}

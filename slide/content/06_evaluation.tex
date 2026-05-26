@@ -32,18 +32,18 @@
 			\caption{Dashboard benchmark latency/RAM tập trung vào vùng biểu đồ chính.}
 		\end{figure}
 		\column{0.36\textwidth}
-		\begin{block}{Đọc biểu đồ}
-			\begin{itemize}
-				\item Weaviate có p50 thấp nhất trong search path.
-				\item Qdrant ổn định hơn ở p95 và footprint thấp.
-				\item Milvus search tốt sau khi load, nhưng lifecycle nặng hơn.
-			\end{itemize}
-		\end{block}
-		\vspace{0.1cm}
-		\textbf{Lưu ý:} latency search không đại diện cho toàn bộ chi phí vận hành.
-	\end{columns}
-	\note{Các số liệu không nên được hiểu là chân lý tuyệt đối cho mọi workload. Chúng là snapshot của project để minh họa profile vận hành. Milvus có search tốt khi đã load index, nhưng full lifecycle có thêm chi phí flush/load. Qdrant có footprint nhỏ nhất trong snapshot.}
-\end{frame}
+			\begin{block}{Đọc biểu đồ}
+				\begin{itemize}
+					\item Weaviate có p50 thấp nhất trong search path.
+					\item Qdrant có latency trung bình thấp trong accuracy snapshot và footprint gọn.
+					\item Milvus đạt recall tốt trong snapshot tradeoff, nhưng latency tail và lifecycle biến động hơn.
+				\end{itemize}
+			\end{block}
+			\vspace{0.1cm}
+			\textbf{Lưu ý:} latency live có thể dao động theo warm-up, cache, tải máy và trạng thái Docker.
+		\end{columns}
+		\note{Các số liệu không nên được hiểu là chân lý tuyệt đối cho mọi workload. Chúng là snapshot của project để minh họa profile vận hành. Dashboard live có thể đổi theo trạng thái Docker, warm-up, cache embedding và tiến trình nền. Vì vậy phần thuyết trình dùng snapshot cố định để kết luận, còn live demo chỉ chứng minh pipeline hoạt động.}
+	\end{frame}
 
 \begin{frame}{Độ chính xác truy hồi: Recall@K \& MRR}
 	\tiny
@@ -63,14 +63,14 @@
 		\vspace{0.08cm}
 		\textbf{Nhận xét:} Milvus có Recall@K/MRR cao nhất trong tập thử nghiệm; Qdrant và Weaviate cần tune thêm Top-K, hybrid alpha hoặc index params.
 		\column{0.66\textwidth}
-		\begin{figure}
-			\centering
-			\includegraphics[width=\linewidth]{accuracy-chart}
-			\caption{Recall@K và MRR từ dashboard benchmark.}
-		\end{figure}
-	\end{columns}
-	\note{Với RAG, metric quan trọng không chỉ là database trả lời nhanh. Nếu Top-K chunks không chứa evidence đúng, LLM sẽ không có cơ sở để trả lời. MRR đặc biệt quan trọng khi context window bị giới hạn và chỉ một vài chunks đầu được ưu tiên.}
-\end{frame}
+			\begin{figure}
+				\centering
+				\includegraphics[width=\linewidth]{accuracy-chart}
+				\caption{Recall@K và MRR từ dashboard benchmark.}
+			\end{figure}
+		\end{columns}
+		\note{Với RAG, metric quan trọng không chỉ là database trả lời nhanh. Nếu Top-K chunks không chứa evidence đúng, LLM sẽ không có cơ sở để trả lời. Corpus benchmark ở đây là synthetic, nhưng embedding và database path chạy thật khi MOCK_MODE=false. Vì vậy kết quả phù hợp để so sánh cùng workload, không nên diễn giải thành chất lượng tuyệt đối trên mọi tài liệu production.}
+	\end{frame}
 
 \begin{frame}{Đánh đổi accuracy-speed \& Pareto Frontier}
 	\scriptsize
@@ -87,11 +87,11 @@
 		\vspace{0.1cm}
 		\textbf{Ý nghĩa:} Milvus thắng về recall trong snapshot; Qdrant/Weaviate phù hợp hơn khi ngân sách latency chặt.
 		\column{0.66\textwidth}
-		\begin{figure}
-			\centering
-			\includegraphics[width=\linewidth]{tradeoff-chart}
-			\caption{Pareto Frontier thực nghiệm: accuracy so với p95 latency.}
-		\end{figure}
-	\end{columns}
-	\note{Pareto Frontier giúp tránh kết luận một chiều. Một cấu hình nhanh hơn nhưng Recall thấp hơn chưa chắc tốt. Một cấu hình chính xác hơn nhưng latency vượt SLA cũng không phù hợp. Cần chọn điểm cân bằng theo use case, corpus size và yêu cầu production.}
-\end{frame}
+			\begin{figure}
+				\centering
+				\includegraphics[width=\linewidth]{tradeoff-chart}
+				\caption{Pareto Frontier thực nghiệm: accuracy so với latency trung bình.}
+			\end{figure}
+		\end{columns}
+		\note{Pareto Frontier giúp tránh kết luận một chiều. Một cấu hình nhanh hơn nhưng Recall thấp hơn chưa chắc tốt. Một cấu hình chính xác hơn nhưng latency vượt SLA cũng không phù hợp. Biểu đồ này dùng AvgLatency_ms từ tradeoff.csv, không phải p95. Cần chọn điểm cân bằng theo use case, corpus size và yêu cầu production.}
+	\end{frame}

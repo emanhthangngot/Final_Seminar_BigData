@@ -71,21 +71,22 @@
 \end{frame}
 
 \begin{frame}{Ba chiến lược kết hợp vector search và metadata}
+	\small
 	\begin{columns}[T]
 		\column{0.33\textwidth}
 		\begin{block}{Pre-filter}
-			Lọc metadata trước rồi search trên tập con.\\[0.12cm]
-			\textbf{Rủi ro:} graph bị thưa.
+			\equalbox{1.35cm}{Lọc metadata trước, rồi search tập con.\\[0.08cm]
+			\textbf{Rủi ro:} graph thưa.}
 		\end{block}
 		\column{0.33\textwidth}
 		\begin{alertblock}{Post-filter}
-			Search vector trước rồi loại kết quả sai filter.\\[0.12cm]
-			\textbf{Rủi ro:} thiếu Top-K hợp lệ.
+			\equalbox{1.35cm}{Search trước, sau đó loại kết quả sai filter.\\[0.08cm]
+			\textbf{Rủi ro:} thiếu Top-K.}
 		\end{alertblock}
 		\column{0.33\textwidth}
 		\begin{exampleblock}{In-graph}
-			Kiểm tra filter ngay khi duyệt HNSW.\\[0.12cm]
-			\textbf{Hợp:} filter-heavy RAG.
+			\equalbox{1.35cm}{Kiểm tra filter ngay trong lúc duyệt HNSW.\\[0.08cm]
+			\textbf{Hợp:} filter-heavy RAG.}
 		\end{exampleblock}
 	\end{columns}
 	\takeaway{Trong production RAG, filter ảnh hưởng trực tiếp đến Recall@K, latency và tenant isolation.}

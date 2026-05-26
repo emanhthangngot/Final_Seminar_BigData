@@ -1,5 +1,3 @@
-\section{Giới thiệu}
-
 \begin{frame}[plain]
 	\centering
 	\vspace{-0.05cm}
@@ -43,14 +41,31 @@
 	\note{Mở đầu bằng bối cảnh: các hệ thống RAG hiện đại phụ thuộc mạnh vào tầng retrieval. Mục tiêu của bộ slide là phân tích ba Vector Database phổ biến theo kiến trúc, khả năng retrieval, chi phí vận hành và tiêu chí chọn lựa cho production.}
 \end{frame}
 
+\section{Giới thiệu}
+
 \begin{frame}{Mục lục}
-	\begin{columns}
+	\vspace{0.25cm}
+	\begin{columns}[T,totalwidth=0.9\textwidth]
 		\column{0.46\textwidth}
-		\tableofcontents
-		\column{0.54\textwidth}
+		\tocline{1}{Giới thiệu}
+		\tocline{2}{Qdrant}
+		\tocline{3}{Weaviate}
+		\tocline{4}{Milvus}
+		\column{0.46\textwidth}
+		\tocline{5}{So sánh}
+		\tocline{6}{Đánh giá thực nghiệm}
+		\tocline{7}{Kết luận}
+	\end{columns}
+	\note{Mục lục được tách riêng để người nghe nhìn rõ mạch nội dung: giới thiệu bài toán RAG, đi qua ba database, rồi so sánh và đánh giá thực nghiệm.}
+\end{frame}
+
+\begin{frame}{Mục tiêu và mạch trình bày}
+	\begin{columns}[T,totalwidth=\textwidth]
+		\column{0.48\textwidth}
 		\begin{block}{Mục tiêu thuyết trình}
 			Phân tích \textbf{Qdrant}, \textbf{Weaviate} và \textbf{Milvus} như ba lựa chọn kỹ thuật tiêu biểu cho tầng retrieval trong hệ thống RAG.
 		\end{block}
+		\column{0.48\textwidth}
 		\begin{exampleblock}{Mạch trình bày}
 			\begin{itemize}
 				\item Vai trò của Vector Database trong kiến trúc RAG.

@@ -1,7 +1,0 @@
-\beamer@sectionintoc {1}{Giới thiệu}{1}{0}{1}
-\beamer@sectionintoc {2}{Qdrant}{10}{0}{2}
-\beamer@sectionintoc {3}{Weaviate}{13}{0}{3}
-\beamer@sectionintoc {4}{Milvus}{16}{0}{4}
-\beamer@sectionintoc {5}{So sánh}{20}{0}{5}
-\beamer@sectionintoc {6}{Đánh giá thực nghiệm}{22}{0}{6}
-\beamer@sectionintoc {7}{Kết luận}{26}{0}{7}
