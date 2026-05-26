@@ -4,16 +4,33 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, FileText, X, CheckCircle, Database, Layers3, RefreshCw } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '../../services/api'
+import { useBenchmarkStore } from '../../store/benchmarkStore'
 
 export default function UploadPanel({ selectedDB, onSuccess, onResetSuccess, compareMode = false, forceAll = false }) {
   const [file, setFile] = useState(null)
   const ingestAll = forceAll || compareMode
+  const {
+    ragChat,
+    setIngestionState,
+    setResetState,
+    startDocumentReplacement,
+    completeDocumentReplacement,
+    failDocumentReplacement,
+  } = useBenchmarkStore()
+  const { ingestion, reset: resetStatus } = ragChat
 
   const { mutate, isPending, isSuccess, isError, error, reset } = useMutation({
     mutationFn: ({ file, db, all }) => all ? api.ingestDocumentAll(file) : api.ingestDocument(file, db),
+    onMutate: ({ file }) => {
+      startDocumentReplacement(file.name)
+    },
     onSuccess: (data) => {
+      completeDocumentReplacement(data)
       onSuccess?.(data)
       setTimeout(() => { setFile(null); reset() }, 3000)
+    },
+    onError: (err) => {
+      failDocumentReplacement(err?.message ?? 'Ingestion failed')
     },
   })
 
@@ -25,12 +42,27 @@ export default function UploadPanel({ selectedDB, onSuccess, onResetSuccess, com
     error: resetError,
   } = useMutation({
     mutationFn: api.resetAllDocuments,
-    onSuccess: (data) => onResetSuccess?.(data),
+    onMutate: () => setResetState({ status: 'pending', error: null }),
+    onSuccess: (data) => {
+      setResetState({ status: 'success', error: null })
+      setIngestionState({ selectedFileName: null, status: 'idle', error: null, result: null })
+      onResetSuccess?.(data)
+    },
+    onError: (err) => setResetState({ status: 'error', error: err?.message ?? 'Reset failed' }),
   })
 
   const onDrop = useCallback((accepted) => {
-    if (accepted[0]) { setFile(accepted[0]); reset() }
-  }, [reset])
+    if (accepted[0]) {
+      setFile(accepted[0])
+      setIngestionState({
+        selectedFileName: accepted[0].name,
+        status: 'selected',
+        error: null,
+        result: null,
+      })
+      reset()
+    }
+  }, [reset, setIngestionState])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop, accept: { 'application/pdf': ['.pdf'] }, maxFiles: 1,
@@ -90,20 +122,27 @@ export default function UploadPanel({ selectedDB, onSuccess, onResetSuccess, com
         )}
       </AnimatePresence>
 
-      {isError && (
-        <p className="text-xs text-qdrant">{error?.message ?? 'Ingestion failed'}</p>
+      {!file && ingestion.selectedFileName && (
+        <div className="relative z-10 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2">
+          <FileText size={14} className="text-primary flex-shrink-0" />
+          <span className="text-xs text-gray-300 truncate flex-1">{ingestion.selectedFileName}</span>
+        </div>
       )}
-      {isSuccess && (
+
+      {(isError || ingestion.status === 'error') && (
+        <p className="text-xs text-qdrant">{error?.message ?? ingestion.error ?? 'Ingestion failed'}</p>
+      )}
+      {(isSuccess || ingestion.status === 'success') && (
         <div className="relative z-10 space-y-2">
           <p className="flex items-center gap-1 text-xs text-milvus">
             <CheckCircle size={12} /> Ingested into {ingestAll ? 'all 3 DBs' : selectedDB}
           </p>
         </div>
       )}
-      {isResetError && (
-        <p className="text-xs text-qdrant">{resetError?.message ?? 'Reset failed'}</p>
+      {(isResetError || resetStatus.status === 'error') && (
+        <p className="text-xs text-qdrant">{resetError?.message ?? resetStatus.error ?? 'Reset failed'}</p>
       )}
-      {isResetSuccess && (
+      {(isResetSuccess || resetStatus.status === 'success') && (
         <p className="relative z-10 flex items-center gap-1 text-xs text-amber-200">
           <CheckCircle size={12} /> All 3 databases were reset
         </p>

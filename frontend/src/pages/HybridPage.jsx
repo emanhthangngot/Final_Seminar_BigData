@@ -1,13 +1,12 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Filter, Search } from 'lucide-react'
 import DBBadge from '../components/ui/DBBadge'
+import { useBenchmarkStore } from '../store/benchmarkStore'
 import { api } from '../services/api'
 
 const DB_COLORS = { Qdrant: '#EF4444', Weaviate: '#3B82F6', Milvus: '#10B981' }
-const DEFAULT_QUERY = 'vector database filtering benchmark'
 const DEFAULT_TOP_K = 5
 const FALLBACK_RESULTS = [
   { Engine: 'Qdrant', ResultCount: 5, Latency_ms: 4.8, Errors: 0 },
@@ -22,8 +21,8 @@ const SETUP_ITEMS = [
 ]
 
 export default function HybridPage() {
-  const [query, setQuery] = useState(DEFAULT_QUERY)
-  const [hybridData, setHybridData] = useState(null)
+  const { hybridSearch, setHybridQuery, setHybridData } = useBenchmarkStore()
+  const { query, data: hybridData } = hybridSearch
 
   const { mutate: runHybrid, isPending } = useMutation({
     mutationFn: async (inputQuery) => {
@@ -69,7 +68,7 @@ export default function HybridPage() {
             <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => setHybridQuery(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && query.trim() && !isPending) runHybrid(query.trim())
               }}

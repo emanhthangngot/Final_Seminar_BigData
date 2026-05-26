@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 const http = axios.create({ baseURL: '/api/v1', timeout: 300_000 })
+const INGEST_TIMEOUT_MS = 900_000
 
 http.interceptors.response.use(
   (r) => r.data,
@@ -49,12 +50,18 @@ export const api = {
     const form = new FormData()
     form.append('file', file)
     form.append('db', db)
-    return http.post('/ingest', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    return http.post('/ingest', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: INGEST_TIMEOUT_MS,
+    })
   },
   ingestDocumentAll: (file) => {
     const form = new FormData()
     form.append('file', file)
-    return http.post('/ingest/all', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    return http.post('/ingest/all', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: INGEST_TIMEOUT_MS,
+    })
   },
   resetAllDocuments: () => http.delete('/ingest/all'),
 

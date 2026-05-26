@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Activity, Bot, BrainCircuit, Cpu, Database, FileText, Gauge, PanelRight, Send, Sparkles, Trash2, User } from 'lucide-react'
@@ -115,12 +115,23 @@ function ComparisonColumn({ db, result, maxima, summary }) {
 }
 
 export default function RAGChatPage() {
-  const { selectedDB, setSelectedDB, chatHistory, addChatMessage, clearChat } = useBenchmarkStore()
-  const [input, setInput] = useState('')
-  const [compareMode, setCompareMode] = useState(true)
-  const [comparisonSessions, setComparisonSessions] = useState([])
-  const [currentDocument, setCurrentDocument] = useState(null)
+  const {
+    selectedDB,
+    setSelectedDB,
+    chatHistory,
+    addChatMessage,
+    clearRagWorkspace,
+    ragChat,
+    setRagInput,
+    setRagCompareMode,
+    addComparisonSession,
+    updateComparisonSession,
+    setCurrentDocument,
+    markLoadingComparisonsInterrupted,
+  } = useBenchmarkStore()
+  const { input, compareMode, comparisonSessions, currentDocument, ingestion } = ragChat
   const bottomRef = useRef(null)
+  const isIngesting = ingestion?.status === 'pending'
 
   const { data: health } = useQuery({
     queryKey: ['health'],
@@ -150,40 +161,52 @@ export default function RAGChatPage() {
   const { mutate: compareChat, isPending: isComparing } = useMutation({
     mutationFn: ({ query }) => api.compareChat(query, 5),
     onSuccess: (data, vars) => {
-      setComparisonSessions((prev) => prev.map((session) => (
-        session.id === vars.id
-          ? { ...session, status: 'success', results: data.results, summary: data.summary, model: data.model, embeddingModel: data.embedding_model, mockMode: data.mock_mode, embeddingMs: data.embedding_ms }
-          : session
-      )))
+      updateComparisonSession(vars.id, (session) => ({
+        ...session,
+        status: 'success',
+        results: data.results,
+        summary: data.summary,
+        model: data.model,
+        embeddingModel: data.embedding_model,
+        mockMode: data.mock_mode,
+        embeddingMs: data.embedding_ms,
+      }))
     },
     onError: (error, vars) => {
       const failed = Object.fromEntries(DBS.map((db) => [
         db,
         { status: 'error', answer: '', context_chunks: [], retrieval_ms: 0, generation_ms: 0, total_ms: 0, result_count: 0, error: error.message },
       ]))
-      setComparisonSessions((prev) => prev.map((session) => (
-        session.id === vars.id ? { ...session, status: 'error', results: failed, summary: { success_count: 0, error_count: 3 } } : session
-      )))
+      updateComparisonSession(vars.id, (session) => ({
+        ...session,
+        status: 'error',
+        results: failed,
+        summary: { success_count: 0, error_count: 3 },
+      }))
     },
   })
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatHistory, comparisonSessions])
 
+  useEffect(() => () => {
+    markLoadingComparisonsInterrupted()
+  }, [markLoadingComparisonsInterrupted])
+
   const handleSend = () => {
-    if (!input.trim() || isPending || isComparing) return
+    if (!input.trim() || isPending || isComparing || isIngesting) return
     const q = input.trim()
-    setInput('')
+    setRagInput('')
 
     if (compareMode) {
       const id = Date.now()
-      setComparisonSessions((prev) => [...prev, {
+      addComparisonSession({
         id,
         query: q,
         createdAt: new Date().toISOString(),
         status: 'loading',
         results: emptyResults(),
         summary: null,
-      }])
+      })
       compareChat({ id, query: q })
       return
     }
@@ -193,12 +216,10 @@ export default function RAGChatPage() {
   }
 
   const clearAll = () => {
-    clearChat()
-    setComparisonSessions([])
+    clearRagWorkspace()
   }
 
   const handleIngestSuccess = (data) => {
-    clearAll()
     setCurrentDocument(data?.filename ?? 'Uploaded PDF')
   }
 
@@ -215,8 +236,8 @@ export default function RAGChatPage() {
   } : { retrieval: 0, generation: 0, total: 0 }
 
   return (
-    <div className="grid h-[calc(100vh-7.25rem)] min-h-[680px] gap-5 xl:grid-cols-[310px_minmax(0,1fr)]">
-      <div className="space-y-4">
+    <div className="grid h-auto min-h-[680px] gap-5 xl:h-[calc(100vh-7.25rem)] xl:grid-cols-[310px_minmax(0,1fr)]">
+      <div className="space-y-4 xl:h-full xl:overflow-y-auto xl:pr-1 scrollbar-thin">
         <div className="card p-5">
           <div className="relative z-10 mb-4 flex items-center justify-between">
             <div>
@@ -226,10 +247,10 @@ export default function RAGChatPage() {
             <PanelRight size={16} className="text-cyan" />
           </div>
           <div className="relative z-10 grid grid-cols-2 rounded-xl border border-white/10 bg-white/[0.035] p-1 text-xs">
-            <button onClick={() => setCompareMode(true)} className={`rounded-lg px-3 py-2 ${compareMode ? 'bg-cyan/15 text-cyan' : 'text-slate-400'}`}>
+            <button onClick={() => setRagCompareMode(true)} className={`rounded-lg px-3 py-2 ${compareMode ? 'bg-cyan/15 text-cyan' : 'text-slate-400'}`}>
               Compare
             </button>
-            <button onClick={() => setCompareMode(false)} className={`rounded-lg px-3 py-2 ${!compareMode ? 'bg-primary/15 text-primary' : 'text-slate-400'}`}>
+            <button onClick={() => setRagCompareMode(false)} className={`rounded-lg px-3 py-2 ${!compareMode ? 'bg-primary/15 text-primary' : 'text-slate-400'}`}>
               Single
             </button>
           </div>
@@ -299,7 +320,7 @@ export default function RAGChatPage() {
         />
       </div>
 
-      <div className="card flex min-w-0 flex-col overflow-hidden">
+      <div className="card flex min-w-0 min-h-0 flex-col overflow-hidden xl:h-full">
         <div className="relative z-10 flex flex-shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <div className="flex min-w-0 items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan/20 bg-cyan/10">
@@ -336,7 +357,7 @@ export default function RAGChatPage() {
           </div>
         )}
 
-        <div className="relative z-10 flex-1 space-y-6 overflow-y-auto px-5 py-5">
+        <div className="relative z-10 h-auto overflow-visible px-5 py-5 space-y-6 xl:flex-1 xl:overflow-y-auto">
           {compareMode && comparisonSessions.length === 0 && (
             <div className="flex h-full items-center justify-center">
               <div className="max-w-lg text-center">
@@ -370,7 +391,7 @@ export default function RAGChatPage() {
                     <p className="whitespace-pre-wrap leading-relaxed">{session.query}</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 gap-4 2xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                   {DBS.map((db) => (
                     <ComparisonColumn
                       key={db}
@@ -454,14 +475,15 @@ export default function RAGChatPage() {
           <div className="flex gap-2">
             <input
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => setRagInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder={compareMode ? 'Ask all three vector databases...' : `Query your knowledge base via ${selectedDB}...`}
+              placeholder={isIngesting ? 'Indexing the new document...' : compareMode ? 'Ask all three vector databases...' : `Query your knowledge base via ${selectedDB}...`}
               className="premium-input flex-1 py-3"
+              disabled={isIngesting}
             />
             <button
               onClick={handleSend}
-              disabled={!input.trim() || isPending || isComparing}
+              disabled={!input.trim() || isPending || isComparing || isIngesting}
               className="btn-primary px-4 py-3"
               aria-label="Send message"
             >

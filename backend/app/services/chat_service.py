@@ -1,4 +1,4 @@
-import sys, pathlib, time
+import sys, pathlib, time, threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 sys.path.insert(0, str(pathlib.Path(__file__).parents[3]))
 
@@ -12,6 +12,7 @@ class ChatService:
     def __init__(self):
         self._embedder: Embedder | None = None
         self._generator: LLMGenerator | None = None
+        self._llm_lock = threading.Lock()
 
     @property
     def embedder(self) -> Embedder:
@@ -33,7 +34,8 @@ class ChatService:
         t0 = time.perf_counter()
         query_vector = self.embedder.embed_query(query)
         context_chunks = engine.search(query_vector, top_k=TOP_K)
-        answer = self.generator.generate(query, context_chunks, db_name)
+        with self._llm_lock:
+            answer = self.generator.generate(query, context_chunks, db_name)
         latency = (time.perf_counter() - t0) * 1000
 
         return {
@@ -95,7 +97,8 @@ class ChatService:
         retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
 
         generation_started = time.perf_counter()
-        answer = self.generator.generate(query, context_chunks, db_name)
+        with self._llm_lock:
+            answer = self.generator.generate(query, context_chunks, db_name)
         generation_ms = (time.perf_counter() - generation_started) * 1000
 
         return {

@@ -1,5 +1,5 @@
 from fastapi import HTTPException, UploadFile
-from app.services.ingest_service import ingest_service
+from app.services.ingest_service import EmptyDocumentError, ingest_service
 
 
 class IngestController:
@@ -10,6 +10,8 @@ class IngestController:
         try:
             content = await file.read()
             return await ingest_service.ingest_pdf(content, file.filename, db)
+        except EmptyDocumentError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc))
         except Exception as exc:
@@ -22,6 +24,8 @@ class IngestController:
         try:
             content = await file.read()
             return await ingest_service.ingest_pdf_all(content, file.filename)
+        except EmptyDocumentError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc))
         except Exception as exc:
