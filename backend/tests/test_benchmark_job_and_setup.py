@@ -46,6 +46,9 @@ class BenchmarkJobAndSetupTests(unittest.TestCase):
         self.assertEqual(job["accuracy"][0]["Engine"], "Qdrant")
         self.assertEqual(job["tradeoff"][0]["top_k"], 50)
         self.assertIn("events", job)
+        prepare_events = [event for event in job["events"] if event["stage"] == "prepare"]
+        self.assertEqual(prepare_events[-1]["status"], "completed")
+        self.assertIn("qdrant", job["db_insights"])
         self.assertEqual(job["events"][-1]["stage"], "completed")
         accuracy.assert_called_once()
         tradeoff.assert_called_once()
@@ -66,7 +69,7 @@ class BenchmarkJobAndSetupTests(unittest.TestCase):
         self.assertEqual(job["status"], "completed")
         self.assertEqual(job["reset"], {"Qdrant": "reset"})
         reset.assert_called_once()
-        accuracy.assert_called_once_with(10_000, 200, True)
+        accuracy.assert_called_once_with(1000, 20, True)
 
     def test_full_benchmark_can_reuse_existing_collections(self):
         from app.models.benchmark import FullBenchmarkRequest
@@ -83,7 +86,7 @@ class BenchmarkJobAndSetupTests(unittest.TestCase):
 
         self.assertEqual(job["status"], "completed")
         reset.assert_not_called()
-        accuracy.assert_called_once_with(10_000, 200, False)
+        accuracy.assert_called_once_with(1000, 20, False)
 
     def test_latest_snapshot_keeps_primary_rows_and_adds_missing_engines(self):
         from app.services.benchmark_service import BenchmarkService
