@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { ArrowRight, BarChart3, Database, Server } from 'lucide-react'
+import DBMechanismScene from '../components/three/DBMechanismScene'
 import DBBadge from '../components/ui/DBBadge'
+import BenchmarkScorecard from '../components/ui/BenchmarkScorecard'
 import { api } from '../services/api'
 import { DB_DEMOS } from '../utils/databaseDemos'
 import { activeEngineCount, formatPercent, tradeoffConclusion } from '../utils/benchmarkInsights'
@@ -58,6 +60,12 @@ export default function Dashboard() {
         </div>
       </section>
 
+      <section className="card h-[620px] p-0">
+        <div className="relative z-10 h-full">
+          <DBMechanismScene mode="overview" />
+        </div>
+      </section>
+
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="card p-5">
           <div className="relative z-10">
@@ -106,6 +114,8 @@ export default function Dashboard() {
           </div>
         </div>
       </section>
+
+      <BenchmarkScorecard accuracy={accuracy} tradeoff={tradeoff} />
 
       <section className="card p-5">
         <div className="relative z-10">

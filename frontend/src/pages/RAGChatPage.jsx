@@ -40,9 +40,45 @@ function MetricBar({ label, value, max, tone = 'bg-cyan' }) {
   )
 }
 
-function ComparisonColumn({ db, result, maxima, summary }) {
+const avg = (values) => {
+  const valid = values.filter((value) => Number.isFinite(value) && value > 0)
+  return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : 0
+}
+
+function deriveInsight(db, result, allResults = {}) {
+  if (result.status !== 'success') return null
+  const rows = Object.values(allResults).filter((row) => row?.status === 'success')
+  const avgRetrieval = avg(rows.map((row) => Number(row.retrieval_ms)))
+  const avgChunks = avg(rows.map((row) => Number(row.result_count)))
+  if (!avgRetrieval) return null
+
+  if (db === 'Qdrant' && result.retrieval_ms < avgRetrieval * 0.85) {
+    const faster = Math.round((1 - result.retrieval_ms / avgRetrieval) * 100)
+    return `Payload filtering likely pruned the search space -> ${faster}% faster retrieval.`
+  }
+  if (db === 'Weaviate' && result.result_count >= avgChunks && result.result_count > 0) {
+    return 'Hybrid retrieval can recover exact keyword matches that dense vectors may rank lower.'
+  }
+  if (db === 'Milvus' && result.retrieval_ms <= avgRetrieval * 1.1) {
+    return 'Loaded in-memory HNSW keeps retrieval stable once collection load cost is amortized.'
+  }
+  return null
+}
+
+function InsightBadge({ insight }) {
+  if (!insight) return null
+  return (
+    <div className="mt-3 flex items-start gap-2 rounded-xl border border-cyan/20 bg-cyan/10 px-3 py-2 text-xs leading-5 text-cyan">
+      <Sparkles size={13} className="mt-0.5 flex-shrink-0" />
+      <span>{insight}</span>
+    </div>
+  )
+}
+
+function ComparisonColumn({ db, result, maxima, summary, allResults }) {
   const meta = DB_META[db]
   const isFastest = summary?.fastest_total === db
+  const insight = deriveInsight(db, result, allResults)
 
   return (
     <motion.div
@@ -89,6 +125,7 @@ function ComparisonColumn({ db, result, maxima, summary }) {
           </div>
           <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
             <MetricBar label="retrieval" value={result.retrieval_ms} max={maxima.retrieval} tone={meta.color} />
+            <InsightBadge insight={insight} />
             <MetricBar label="generation" value={result.generation_ms} max={maxima.generation} tone="bg-accent" />
             <MetricBar label="total" value={result.total_ms} max={maxima.total} tone="bg-cyan" />
             <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/15 px-3 py-2 text-[11px] text-slate-400">
@@ -399,6 +436,7 @@ export default function RAGChatPage() {
                       result={session.results[db]}
                       maxima={localMaxima.total > 0 ? localMaxima : maxima}
                       summary={session.summary}
+                      allResults={session.results}
                     />
                   ))}
                 </div>

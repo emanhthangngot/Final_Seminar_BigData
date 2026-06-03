@@ -10,7 +10,7 @@ import {
 
 const NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/benchmark-workflow', icon: BarChart3, label: 'Benchmark Workflow' },
+  { to: '/benchmark-workflow', icon: BarChart3, label: 'Benchmark Results' },
   { to: '/databases/qdrant', icon: Database, label: 'Qdrant Demo' },
   { to: '/databases/weaviate', icon: Database, label: 'Weaviate Demo' },
   { to: '/databases/milvus', icon: Database, label: 'Milvus Demo' },

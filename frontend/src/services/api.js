@@ -79,8 +79,8 @@ export const api = {
 
   startFullBenchmark: (config = {}) =>
     http.post('/benchmark/full', {
-      corpus_size: config.corpusSize ?? 10_000,
-      num_queries: config.numQueries ?? 200,
+      corpus_size: config.corpusSize ?? 1000,
+      num_queries: config.numQueries ?? 20,
       reset_collections: config.resetCollections ?? true,
       run_accuracy: config.runAccuracy ?? true,
       run_tradeoff: config.runTradeoff ?? true,
