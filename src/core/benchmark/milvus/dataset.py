@@ -25,7 +25,7 @@ from __future__ import annotations
 import random
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.config import (
     BENCH_CORPUS_SIZE,
@@ -63,6 +63,7 @@ _CATEGORIES = ["tech", "science", "engineering", "research", "ops"]
 class GoldenPair:
     query: str
     chunk_id: str
+    query_vector: Optional[List[float]] = None
 
 
 def _make_chunk_text(rng: random.Random, idx: int) -> str:

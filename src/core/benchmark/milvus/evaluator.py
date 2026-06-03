@@ -32,6 +32,14 @@ from src.core.utils.logger import logger
 K_VALUES = (1, 5, 10)
 
 
+def _preembed_queries(embedder, pairs: List[GoldenPair]) -> None:
+    if not pairs:
+        return
+    query_vectors = embedder.embed_documents([pair.query for pair in pairs])
+    for pair, qvec in zip(pairs, query_vectors):
+        pair.query_vector = qvec
+
+
 def _evaluate_one(
     engine_name: str,
     db,
@@ -47,7 +55,9 @@ def _evaluate_one(
 
     for pair in pairs:
         try:
-            qvec = embedder.embed_query(pair.query)
+            qvec = pair.query_vector
+            if qvec is None:
+                qvec = embedder.embed_query(pair.query)
 
             t0 = time.perf_counter()
             chunks = db.search(qvec, top_k=top_k)
@@ -115,6 +125,7 @@ def run_accuracy_benchmark(
     """
     corpus, ids, metadata = build_corpus(size=corpus_size)
     pairs = build_golden_queries(corpus, ids, num_queries=num_queries)
+    _preembed_queries(embedder, pairs)
     logger.info(
         "[Evaluator] corpus=%d chunks, queries=%d, engines=%s",
         len(corpus), len(pairs), list(db_engines.keys()),

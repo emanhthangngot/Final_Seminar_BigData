@@ -9,13 +9,13 @@ class StressTestRequest(BaseModel):
 
 class AccuracyBenchmarkRequest(BaseModel):
     corpus_size: int = Field(default=1000, ge=100, le=200_000)
-    num_queries: int = Field(default=50, ge=10, le=2000)
+    num_queries: int = Field(default=20, ge=10, le=2000)
     ingest: bool = True
 
 
 class FullBenchmarkRequest(BaseModel):
-    corpus_size: int = Field(default=10_000, ge=100, le=200_000)
-    num_queries: int = Field(default=200, ge=10, le=2000)
+    corpus_size: int = Field(default=1000, ge=100, le=200_000)
+    num_queries: int = Field(default=20, ge=10, le=2000)
     reset_collections: bool = True
     run_accuracy: bool = True
     run_tradeoff: bool = True

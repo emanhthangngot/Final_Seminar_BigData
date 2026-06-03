@@ -19,12 +19,21 @@ from typing import Dict, Iterable, List
 import pandas as pd
 
 from src.core.benchmark.dataset import (
+    GoldenPair,
     build_corpus,
     build_golden_queries,
     extract_chunk_id,
 )
 from src.core.utils.logger import logger
 from src.config import TRADEOFF_FILE
+
+
+def _preembed_queries(embedder, pairs: List[GoldenPair]) -> None:
+    if not pairs:
+        return
+    query_vectors = embedder.embed_documents([pair.query for pair in pairs])
+    for pair, qvec in zip(pairs, query_vectors):
+        pair.query_vector = qvec
 
 
 def run_tradeoff_sweep(
@@ -43,6 +52,7 @@ def run_tradeoff_sweep(
     """
     corpus, ids, metadata = build_corpus(size=corpus_size)
     pairs = build_golden_queries(corpus, ids, num_queries=num_queries)
+    _preembed_queries(embedder, pairs)
     k_values = list(k_values)
 
     if ingest:
@@ -68,7 +78,9 @@ def run_tradeoff_sweep(
             latencies_ms: List[float] = []
             for pair in pairs:
                 try:
-                    qvec = embedder.embed_query(pair.query)
+                    qvec = pair.query_vector
+                    if qvec is None:
+                        qvec = embedder.embed_query(pair.query)
                     t0 = time.perf_counter()
                     chunks = db.search(qvec, top_k=k)
                     latencies_ms.append((time.perf_counter() - t0) * 1000)

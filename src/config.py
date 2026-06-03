@@ -82,9 +82,9 @@ INDEX_PARAMS = {
 # Benchmark Dataset
 # ---------------------------------------------------------------------------
 # Synthetic corpus scale for reproducible scale testing. Override via env for
-# quick smoke tests (e.g. BENCH_CORPUS_SIZE=1000).
-BENCH_CORPUS_SIZE = int(os.getenv("BENCH_CORPUS_SIZE", 10000))
-BENCH_NUM_QUERIES = int(os.getenv("BENCH_NUM_QUERIES", 200))
+# quick smoke tests or live demos.
+BENCH_CORPUS_SIZE = int(os.getenv("BENCH_CORPUS_SIZE", 1000))
+BENCH_NUM_QUERIES = int(os.getenv("BENCH_NUM_QUERIES", 20))
 BENCH_SEED = int(os.getenv("BENCH_SEED", 42))
 CHUNK_ID_PREFIX = "CID"  # every synthetic chunk starts with [CID:xxxx] for ground-truth matching
 

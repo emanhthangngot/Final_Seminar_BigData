@@ -289,9 +289,9 @@ def main():
         )
         col_a, col_b = st.columns(2)
         with col_a:
-            corpus_size = st.number_input("Corpus size", min_value=100, max_value=200000, value=BENCH_CORPUS_SIZE, step=500)
+            corpus_size = st.number_input("Corpus size", min_value=100, max_value=200000, value=BENCH_CORPUS_SIZE, step=100)
         with col_b:
-            num_queries = st.number_input("Golden queries", min_value=10, max_value=2000, value=BENCH_NUM_QUERIES, step=10)
+            num_queries = st.number_input("Golden queries", min_value=10, max_value=2000, value=BENCH_NUM_QUERIES, step=5)
         ingest_flag = st.checkbox("Ingest corpus before evaluation", value=True,
                                   help="Uncheck if the corpus is already loaded from a previous run.")
 

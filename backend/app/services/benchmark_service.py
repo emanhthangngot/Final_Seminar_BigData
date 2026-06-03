@@ -5,6 +5,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).parents[3]))
 import pandas as pd
 from config import (
     BENCHMARK_DIR,
+    BENCH_CORPUS_SIZE,
+    BENCH_NUM_QUERIES,
     FRONTEND_BENCHMARK_DATA_DIR,
     EMBEDDING_MODEL,
     HNSW_EF_CONSTRUCTION,
@@ -71,6 +73,10 @@ class BenchmarkService:
                 "mock_mode": MOCK_MODE,
                 "llm_model": LLM_MODEL,
                 "embedding_model": EMBEDDING_MODEL,
+            },
+            "benchmark_defaults": {
+                "corpus_size": BENCH_CORPUS_SIZE,
+                "num_queries": BENCH_NUM_QUERIES,
             },
             "fairness": {
                 "vector_dim": VECTOR_DIM,
@@ -151,6 +157,7 @@ class BenchmarkService:
         try:
             self._append_job_event(job_id, "prepare", "running", "Preparing benchmark job.")
             self._patch_job(job_id, status="running", stage="prepare", progress=10)
+            self._append_job_event(job_id, "prepare", "completed", "Benchmark preparation completed.")
             reset_results = {}
             if req.reset_collections:
                 self._append_job_event(job_id, "reset", "running", "Resetting collections before ingest.")
@@ -181,6 +188,7 @@ class BenchmarkService:
                 self._append_job_event(job_id, "tradeoff", "skipped", "Trade-off sweep disabled.")
 
             completed_at = datetime.now(timezone.utc).isoformat()
+            db_insights = self._build_db_insights(accuracy, tradeoff)
             self._append_job_event(job_id, "completed", "completed", "Benchmark workflow completed.")
             self._patch_job(
                 job_id,
@@ -189,6 +197,7 @@ class BenchmarkService:
                 progress=100,
                 accuracy=accuracy,
                 tradeoff=tradeoff,
+                db_insights=db_insights,
                 completed_at=completed_at,
             )
         except Exception as exc:
@@ -216,6 +225,7 @@ class BenchmarkService:
             "setup": self.get_setup_summary(),
             "accuracy": [],
             "tradeoff": [],
+            "db_insights": {},
             "events": [],
             "error": None,
             "started_at": now,
@@ -278,6 +288,71 @@ class BenchmarkService:
                     "Error": str(exc),
                 })
         return rows
+
+    @staticmethod
+    def _build_db_insights(accuracy: list[dict], tradeoff: list[dict]) -> dict:
+        if not accuracy:
+            return {}
+
+        latencies = [
+            float(row.get("AvgLatency_ms", 0) or 0)
+            for row in accuracy
+            if float(row.get("AvgLatency_ms", 0) or 0) > 0
+        ]
+        avg_latency = sum(latencies) / len(latencies) if latencies else 0
+        recall_by_engine = {
+            row.get("Engine"): float(row.get("Recall@10", 0) or 0)
+            for row in accuracy
+        }
+        latency_by_engine = {
+            row.get("Engine"): float(row.get("AvgLatency_ms", 0) or 0)
+            for row in accuracy
+        }
+        best_recall = max(recall_by_engine.values()) if recall_by_engine else 0
+        best_latency = min(latencies) if latencies else 0
+
+        best_tradeoff = None
+        best_tradeoff_score = -1.0
+        for row in tradeoff:
+            latency = float(row.get("AvgLatency_ms", 0) or 0)
+            if latency <= 0:
+                continue
+            score = float(row.get("Recall", 0) or 0) / latency
+            if score > best_tradeoff_score:
+                best_tradeoff_score = score
+                best_tradeoff = row.get("Engine")
+
+        insights = {}
+        for engine in ("Qdrant", "Weaviate", "Milvus"):
+            latency = latency_by_engine.get(engine, 0)
+            recall = recall_by_engine.get(engine, 0)
+            delta_latency = latency - avg_latency if avg_latency else 0
+            faster_pct = max(0, round((1 - latency / avg_latency) * 100)) if avg_latency and latency else 0
+
+            if engine == "Qdrant":
+                note = (
+                    f"Payload filtering likely pruned candidate vectors; retrieval is {faster_pct}% faster than average."
+                    if faster_pct
+                    else "Payload filters reduce ANN work when metadata constraints are selective."
+                )
+                advantage = "filter_reduced_space"
+            elif engine == "Weaviate":
+                note = "Hybrid BM25 + dense retrieval improves keyword-heavy technical queries."
+                advantage = "hybrid_recall_boost"
+            else:
+                note = "Loaded collection and in-memory HNSW amortize setup cost for larger or repeated workloads."
+                advantage = "concurrent_throughput"
+
+            insights[engine.lower()] = {
+                "advantage": advantage,
+                "delta_latency_ms": round(delta_latency, 2),
+                "recall_at_10": recall,
+                "is_best_recall": recall == best_recall and best_recall > 0,
+                "is_lowest_latency": latency == best_latency and best_latency > 0,
+                "is_best_tradeoff": engine == best_tradeoff,
+                "note": note,
+            }
+        return insights
 
     def run_stress(self, rounds: int, chunks_per_round: int) -> dict:
         from core.benchmark.milvus.stress_test import run_stress_test

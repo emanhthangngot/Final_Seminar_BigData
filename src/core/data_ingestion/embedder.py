@@ -2,8 +2,9 @@
 Embedder module -- creates vector embeddings for text chunks.
 
 Optimisation layers (applied in order):
-  1. **Disk cache**: MD5-keyed JSON files under ``data/.embed_cache/``.
-     Re-uploading the same PDF skips embedding entirely (<0.5 s).
+  1. **Memory-backed disk cache**: one JSON index under
+     ``data/.embed_cache/embeddings.json`` is loaded into RAM once. Re-uploading
+     the same PDF skips embedding without thousands of small-file checks.
   2. **Ollama native batch**: POST ``/api/embed`` with ``input: [...]``
      sends all texts in a single HTTP request (Ollama ≥ 0.5).
   3. **Parallel fallback**: If the batch endpoint is unavailable, texts
@@ -12,12 +13,14 @@ Optimisation layers (applied in order):
      of the input text.  Identical inputs always produce identical vectors.
 """
 
+import atexit
 import hashlib
 import json
 import os
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import RLock
 from typing import List, Optional
 
 from src.config import (
@@ -33,6 +36,7 @@ from src.core.utils.logger import logger
 # Cache directory — sits alongside uploaded data
 # ---------------------------------------------------------------------------
 CACHE_DIR = str(DATA_DIR / ".embed_cache")
+CACHE_FILE = os.path.join(CACHE_DIR, "embeddings.json")
 
 # Parallel embedding config
 _MAX_WORKERS = 4          # concurrent HTTP requests for fallback path
@@ -45,6 +49,11 @@ class Embedder:
     def __init__(self):
         self._live_embeddings = None
         self._supports_batch: Optional[bool] = None  # lazy-detected
+        self._cache_lock = RLock()
+        self._cache_dirty = False
+        self._cache = {} if MOCK_MODE else self._load_cache_index()
+        if not MOCK_MODE:
+            atexit.register(self.flush_cache)
 
         if MOCK_MODE:
             logger.info(
@@ -77,26 +86,54 @@ class Embedder:
     def _cache_key(text: str) -> str:
         return hashlib.md5(text.encode("utf-8", errors="replace")).hexdigest()
 
+    def _load_cache_index(self) -> dict:
+        if not os.path.exists(CACHE_FILE):
+            return {}
+        try:
+            with open(CACHE_FILE, "r") as f:
+                raw_cache = json.load(f)
+            if not isinstance(raw_cache, dict):
+                return {}
+            cache = {
+                key: vec
+                for key, vec in raw_cache.items()
+                if isinstance(vec, list) and len(vec) == VECTOR_DIM
+            }
+            logger.info("[Embedder] Loaded %d cached embeddings into memory.", len(cache))
+            return cache
+        except Exception as exc:
+            logger.warning("[Embedder] Failed to load embedding cache: %s", exc)
+            return {}
+
     def _load_cached(self, text: str) -> Optional[List[float]]:
-        path = os.path.join(CACHE_DIR, f"{self._cache_key(text)}.json")
-        if os.path.exists(path):
-            try:
-                with open(path, "r") as f:
-                    vec = json.load(f)
-                if len(vec) == VECTOR_DIM:
-                    return vec
-            except Exception:
-                pass
-        return None
+        with self._cache_lock:
+            return self._cache.get(self._cache_key(text))
 
     def _save_cached(self, text: str, vector: List[float]) -> None:
+        if len(vector) != VECTOR_DIM:
+            return
+        with self._cache_lock:
+            self._cache[self._cache_key(text)] = vector
+            self._cache_dirty = True
+
+    def flush_cache(self) -> None:
+        with self._cache_lock:
+            if not self._cache_dirty:
+                return
+            cache_snapshot = dict(self._cache)
+            self._cache_dirty = False
+
         os.makedirs(CACHE_DIR, exist_ok=True)
-        path = os.path.join(CACHE_DIR, f"{self._cache_key(text)}.json")
+        tmp_path = f"{CACHE_FILE}.tmp"
         try:
-            with open(path, "w") as f:
-                json.dump(vector, f)
-        except Exception:
-            pass  # non-critical
+            with open(tmp_path, "w") as f:
+                json.dump(cache_snapshot, f)
+            os.replace(tmp_path, CACHE_FILE)
+            logger.info("[Embedder] Persisted %d cached embeddings.", len(cache_snapshot))
+        except Exception as exc:
+            logger.warning("[Embedder] Failed to persist embedding cache: %s", exc)
+            with self._cache_lock:
+                self._cache_dirty = True
 
     # ------------------------------------------------------------------
     # Mock helpers
@@ -208,23 +245,28 @@ class Embedder:
         if MOCK_MODE:
             return [self._deterministic_vector(t) for t in texts]
 
-        # --- Phase 1: Separate cached vs uncached ---
+        # --- Phase 1: Separate cached vs uncached and dedupe misses ---
         vectors: List[Optional[List[float]]] = [None] * len(texts)
-        uncached_indices: List[int] = []
+        uncached_positions_by_key: dict[str, List[int]] = {}
         uncached_texts: List[str] = []
+        uncached_keys: List[str] = []
 
         for i, text in enumerate(texts):
             cached = self._load_cached(text)
             if cached is not None:
                 vectors[i] = cached
             else:
-                uncached_indices.append(i)
-                uncached_texts.append(text)
+                key = self._cache_key(text)
+                if key not in uncached_positions_by_key:
+                    uncached_positions_by_key[key] = []
+                    uncached_keys.append(key)
+                    uncached_texts.append(text)
+                uncached_positions_by_key[key].append(i)
 
-        cache_hits = len(texts) - len(uncached_texts)
+        cache_hits = sum(1 for v in vectors if v is not None)
         if cache_hits > 0:
             logger.info(
-                "[Embedder] Cache: %d/%d hits, %d to embed.",
+                "[Embedder] Cache: %d/%d hits, %d unique texts to embed.",
                 cache_hits, len(texts), len(uncached_texts),
             )
 
@@ -247,13 +289,16 @@ class Embedder:
                 new_vectors = self._parallel_embed(uncached_texts)
 
         # --- Phase 4: Validate + cache + merge ---
-        for rel_idx, abs_idx in enumerate(uncached_indices):
+        for rel_idx, key in enumerate(uncached_keys):
             vec = new_vectors[rel_idx]
             assert len(vec) == VECTOR_DIM, (
                 f"Dimension mismatch: expected {VECTOR_DIM}, got {len(vec)}"
             )
-            vectors[abs_idx] = vec
+            for abs_idx in uncached_positions_by_key[key]:
+                vectors[abs_idx] = vec
             self._save_cached(uncached_texts[rel_idx], vec)
+
+        self.flush_cache()
 
         # Final validation
         for v in vectors:
@@ -265,7 +310,8 @@ class Embedder:
         if MOCK_MODE:
             vector = self._deterministic_vector(text)
         else:
-            # Queries are NOT cached — they should always be live
+            # Ad-hoc chat queries keep the single-query path. Benchmarks
+            # pre-embed query batches via embed_documents so they can use cache.
             result = self._try_batch_embed([text])
             if result is not None:
                 vector = result[0]
