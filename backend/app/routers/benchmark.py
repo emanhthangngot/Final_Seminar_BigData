@@ -1,7 +1,12 @@
 from fastapi import APIRouter
 from app.controllers.benchmark_controller import BenchmarkController
 from app.models.benchmark import (
-    AccuracyBenchmarkRequest, BenchmarkReportResponse, HybridBenchmarkRequest, TradeoffRequest, StressTestRequest
+    AccuracyBenchmarkRequest,
+    BenchmarkReportResponse,
+    FullBenchmarkRequest,
+    HybridBenchmarkRequest,
+    TradeoffRequest,
+    StressTestRequest,
 )
 
 router = APIRouter()
@@ -15,6 +20,26 @@ def get_latest_accuracy():
 @router.get("/benchmark/tradeoff/latest")
 def get_latest_tradeoff():
     return BenchmarkController.latest_tradeoff()
+
+
+@router.get("/benchmark/setup")
+def get_benchmark_setup():
+    return BenchmarkController.setup()
+
+
+@router.post("/benchmark/full")
+def start_full_benchmark(req: FullBenchmarkRequest):
+    return BenchmarkController.start_full(req)
+
+
+@router.get("/benchmark/jobs/latest")
+def get_latest_benchmark_job():
+    return BenchmarkController.latest_job()
+
+
+@router.get("/benchmark/jobs/{job_id}")
+def get_benchmark_job(job_id: str):
+    return BenchmarkController.job(job_id)
 
 
 @router.get("/benchmark/report", response_model=BenchmarkReportResponse)

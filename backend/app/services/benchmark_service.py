@@ -1,16 +1,30 @@
-import sys, pathlib, time
+import sys, pathlib, time, threading, uuid
 from datetime import datetime, timezone
 sys.path.insert(0, str(pathlib.Path(__file__).parents[3]))
 
 import pandas as pd
-from config import BENCHMARK_DIR, FRONTEND_BENCHMARK_DATA_DIR
+from config import (
+    BENCHMARK_DIR,
+    FRONTEND_BENCHMARK_DATA_DIR,
+    EMBEDDING_MODEL,
+    HNSW_EF_CONSTRUCTION,
+    HNSW_EF_SEARCH,
+    HNSW_M,
+    LLM_MODEL,
+    MOCK_MODE,
+    VECTOR_DIM,
+)
 from core.data_ingestion.embedder import Embedder
+from app.models.benchmark import FullBenchmarkRequest
 from .database_service import db_service
 
 
 class BenchmarkService:
     def __init__(self):
         self._embedder = None
+        self._jobs: dict[str, dict] = {}
+        self._latest_job_id: str | None = None
+        self._jobs_lock = threading.Lock()
 
     @property
     def embedder(self) -> Embedder:
@@ -29,6 +43,20 @@ class BenchmarkService:
         )
         return df.to_dict(orient="records")
 
+    def reset_collections(self) -> dict[str, str]:
+        results = {}
+        for name, engine in db_service.all().items():
+            reset_fn = getattr(engine, "reset_collection", None)
+            if not callable(reset_fn):
+                results[name] = "unsupported"
+                continue
+            try:
+                reset_fn()
+                results[name] = "reset"
+            except Exception as exc:
+                results[name] = f"failed: {exc}"
+        return results
+
     def run_tradeoff(self, ingest: bool) -> list[dict]:
         from core.benchmark.milvus.tradeoff import run_tradeoff_sweep
 
@@ -36,6 +64,189 @@ class BenchmarkService:
             db_service.all(), self.embedder, ingest=ingest,
         )
         return df.to_dict(orient="records")
+
+    def get_setup_summary(self) -> dict:
+        return {
+            "runtime": {
+                "mock_mode": MOCK_MODE,
+                "llm_model": LLM_MODEL,
+                "embedding_model": EMBEDDING_MODEL,
+            },
+            "fairness": {
+                "vector_dim": VECTOR_DIM,
+                "distance_metric": "COSINE",
+                "index_type": "HNSW",
+                "hnsw_m": HNSW_M,
+                "ef_construction": HNSW_EF_CONSTRUCTION,
+                "ef_search": HNSW_EF_SEARCH,
+            },
+            "databases": {
+                "Qdrant": {
+                    "image": "qdrant/qdrant:latest",
+                    "ports": ["6333/http", "6334/grpc"],
+                    "ram_limit": "1G",
+                    "volume": "./volumes/qdrant_data:/qdrant/storage",
+                    "dependencies": [],
+                    "collection": "SeminarKnowledge_Base",
+                    "index": "HNSW with payload metadata filters",
+                    "highlight": "Payload-first filtering for tenant, ACL, source, category, and page constrained RAG.",
+                    "rag_logic": "query_points(vector, query_filter, hnsw_ef=64) returns filtered evidence chunks.",
+                },
+                "Weaviate": {
+                    "image": "semitechnologies/weaviate:1.27.2",
+                    "ports": ["8080/http", "50051/grpc"],
+                    "ram_limit": "1G",
+                    "volume": "./volumes/weaviate_data:/var/lib/weaviate",
+                    "dependencies": [],
+                    "collection": "RAGDocument",
+                    "index": "Schema-backed HNSW, vectorizer disabled",
+                    "highlight": "Native BM25 plus dense vector hybrid search with alpha=0.5.",
+                    "rag_logic": "collection.query.hybrid(query, vector, alpha, filters) fuses keyword and semantic evidence.",
+                },
+                "Milvus": {
+                    "image": "milvusdb/milvus:latest",
+                    "ports": ["19530/grpc", "9091/http"],
+                    "ram_limit": "2G",
+                    "volume": "./volumes/milvus_data:/var/lib/milvus",
+                    "dependencies": ["etcd", "MinIO"],
+                    "collection": "Seminar_RAG_Collection",
+                    "index": "HNSW FLOAT_VECTOR(768), loaded into memory before search",
+                    "highlight": "Scale-oriented vector engine with explicit load/flush behavior and separate metadata/object storage dependencies.",
+                    "rag_logic": "collection.search(vector, ef=64) after collection.load(); metadata filters compile to Milvus expr.",
+                },
+            },
+        }
+
+    def start_full_benchmark_job(self, req: FullBenchmarkRequest) -> dict:
+        job_id = uuid.uuid4().hex
+        job = self._new_job(job_id, req)
+        with self._jobs_lock:
+            self._jobs[job_id] = job
+            self._latest_job_id = job_id
+
+        thread = threading.Thread(
+            target=self._run_full_job_in_background,
+            args=(job_id, req),
+            daemon=True,
+        )
+        thread.start()
+        return job
+
+    def get_job(self, job_id: str) -> dict | None:
+        with self._jobs_lock:
+            job = self._jobs.get(job_id)
+            return dict(job) if job else None
+
+    def get_latest_job(self) -> dict | None:
+        with self._jobs_lock:
+            if not self._latest_job_id:
+                return None
+            job = self._jobs.get(self._latest_job_id)
+            return dict(job) if job else None
+
+    def run_full_benchmark_job(self, req: FullBenchmarkRequest, job_id: str | None = None) -> dict:
+        job_id = job_id or uuid.uuid4().hex
+        job = self._new_job(job_id, req)
+        self._update_job(job_id, job)
+        try:
+            self._append_job_event(job_id, "prepare", "running", "Preparing benchmark job.")
+            self._patch_job(job_id, status="running", stage="prepare", progress=10)
+            reset_results = {}
+            if req.reset_collections:
+                self._append_job_event(job_id, "reset", "running", "Resetting collections before ingest.")
+                reset_results = self.reset_collections()
+                failed = {name: status for name, status in reset_results.items() if status.startswith("failed:")}
+                if failed:
+                    raise RuntimeError(f"Collection reset failed: {failed}")
+                self._append_job_event(job_id, "reset", "completed", "Collections reset completed.", {"results": reset_results})
+            else:
+                self._append_job_event(job_id, "reset", "skipped", "Using existing collections.")
+
+            self._patch_job(job_id, stage="accuracy", progress=20, reset=reset_results)
+            accuracy = []
+            if req.run_accuracy:
+                self._append_job_event(job_id, "accuracy", "running", "Running Recall@K and MRR benchmark.")
+                accuracy = self.run_accuracy(req.corpus_size, req.num_queries, req.reset_collections)
+                self._append_job_event(job_id, "accuracy", "completed", "Accuracy benchmark completed.", {"row_count": len(accuracy)})
+            else:
+                self._append_job_event(job_id, "accuracy", "skipped", "Accuracy benchmark disabled.")
+
+            self._patch_job(job_id, stage="tradeoff", progress=70, accuracy=accuracy)
+            tradeoff = []
+            if req.run_tradeoff:
+                self._append_job_event(job_id, "tradeoff", "running", "Running top_k trade-off sweep.")
+                tradeoff = self.run_tradeoff(False)
+                self._append_job_event(job_id, "tradeoff", "completed", "Trade-off sweep completed.", {"row_count": len(tradeoff)})
+            else:
+                self._append_job_event(job_id, "tradeoff", "skipped", "Trade-off sweep disabled.")
+
+            completed_at = datetime.now(timezone.utc).isoformat()
+            self._append_job_event(job_id, "completed", "completed", "Benchmark workflow completed.")
+            self._patch_job(
+                job_id,
+                status="completed",
+                stage="completed",
+                progress=100,
+                accuracy=accuracy,
+                tradeoff=tradeoff,
+                completed_at=completed_at,
+            )
+        except Exception as exc:
+            self._append_job_event(job_id, "failed", "failed", str(exc))
+            self._patch_job(
+                job_id,
+                status="failed",
+                stage="failed",
+                error=str(exc),
+                completed_at=datetime.now(timezone.utc).isoformat(),
+            )
+        return self.get_job(job_id) or job
+
+    def _run_full_job_in_background(self, job_id: str, req: FullBenchmarkRequest) -> None:
+        self.run_full_benchmark_job(req, job_id=job_id)
+
+    def _new_job(self, job_id: str, req: FullBenchmarkRequest) -> dict:
+        now = datetime.now(timezone.utc).isoformat()
+        return {
+            "job_id": job_id,
+            "status": "queued",
+            "stage": "queued",
+            "progress": 0,
+            "config": req.model_dump(),
+            "setup": self.get_setup_summary(),
+            "accuracy": [],
+            "tradeoff": [],
+            "events": [],
+            "error": None,
+            "started_at": now,
+            "completed_at": None,
+        }
+
+    def _update_job(self, job_id: str, job: dict) -> None:
+        with self._jobs_lock:
+            self._jobs[job_id] = dict(job)
+            self._latest_job_id = job_id
+
+    def _patch_job(self, job_id: str, **changes) -> None:
+        with self._jobs_lock:
+            current = self._jobs.get(job_id, self._new_job(job_id, FullBenchmarkRequest()))
+            current.update(changes)
+            self._jobs[job_id] = current
+            self._latest_job_id = job_id
+
+    def _append_job_event(self, job_id: str, stage: str, status: str, message: str, data: dict | None = None) -> None:
+        event = {
+            "stage": stage,
+            "status": status,
+            "message": message,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "data": data or {},
+        }
+        with self._jobs_lock:
+            current = self._jobs.get(job_id, self._new_job(job_id, FullBenchmarkRequest()))
+            current.setdefault("events", []).append(event)
+            self._jobs[job_id] = current
+            self._latest_job_id = job_id
 
     def run_hybrid(
         self,
@@ -312,12 +523,14 @@ Generated at: {generated_at}
 
     def _read_snapshot_csv(self, filename: str, recall_columns: tuple[str, ...]) -> list[dict]:
         if filename in {"recall.csv", "tradeoff.csv"}:
-            df = self._read_per_database_snapshot(filename)
-            if df.empty:
-                path = self._find_snapshot_csv(filename)
-                if path is None:
-                    return []
+            path = self._find_snapshot_csv(filename)
+            if path is not None:
                 df = pd.read_csv(path)
+                df = self._merge_per_database_rows(df, filename)
+            else:
+                df = self._read_per_database_snapshot(filename)
+                if df.empty:
+                    return []
         else:
             path = self._find_snapshot_csv(filename)
             if path is None:
@@ -331,8 +544,8 @@ Generated at: {generated_at}
 
     def _find_snapshot_csv(self, filename: str):
         candidates = [
-            FRONTEND_BENCHMARK_DATA_DIR / "combined" / filename,
             BENCHMARK_DIR / filename,
+            FRONTEND_BENCHMARK_DATA_DIR / "combined" / filename,
             BENCHMARK_DIR / "weaviate" / filename,
         ]
         return next((path for path in candidates if path.exists()), None)
@@ -344,5 +557,16 @@ Generated at: {generated_at}
             if path.exists():
                 frames.append(pd.read_csv(path))
         return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+    def _merge_per_database_rows(self, primary: pd.DataFrame, filename: str) -> pd.DataFrame:
+        per_database = self._read_per_database_snapshot(filename)
+        if per_database.empty or "Engine" not in primary.columns or "Engine" not in per_database.columns:
+            return primary
+
+        existing = set(primary["Engine"].astype(str))
+        missing = per_database[~per_database["Engine"].astype(str).isin(existing)]
+        if missing.empty:
+            return primary
+        return pd.concat([primary, missing], ignore_index=True)
 
 benchmark_service = BenchmarkService()

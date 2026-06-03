@@ -1,6 +1,10 @@
 from fastapi import HTTPException
 from app.models.benchmark import (
-    AccuracyBenchmarkRequest, HybridBenchmarkRequest, TradeoffRequest, StressTestRequest
+    AccuracyBenchmarkRequest,
+    FullBenchmarkRequest,
+    HybridBenchmarkRequest,
+    TradeoffRequest,
+    StressTestRequest,
 )
 from app.services.benchmark_service import benchmark_service
 
@@ -13,6 +17,31 @@ class BenchmarkController:
     @staticmethod
     def latest_tradeoff() -> list[dict]:
         return benchmark_service.get_latest_tradeoff()
+
+    @staticmethod
+    def setup() -> dict:
+        return benchmark_service.get_setup_summary()
+
+    @staticmethod
+    def start_full(req: FullBenchmarkRequest) -> dict:
+        try:
+            return benchmark_service.start_full_benchmark_job(req)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+
+    @staticmethod
+    def job(job_id: str) -> dict:
+        job = benchmark_service.get_job(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail=f"Benchmark job '{job_id}' was not found.")
+        return job
+
+    @staticmethod
+    def latest_job() -> dict:
+        job = benchmark_service.get_latest_job()
+        if job is None:
+            raise HTTPException(status_code=404, detail="No benchmark job has been started.")
+        return job
 
     @staticmethod
     def report() -> dict:

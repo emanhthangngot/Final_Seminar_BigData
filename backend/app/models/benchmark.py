@@ -13,6 +13,14 @@ class AccuracyBenchmarkRequest(BaseModel):
     ingest: bool = True
 
 
+class FullBenchmarkRequest(BaseModel):
+    corpus_size: int = Field(default=10_000, ge=100, le=200_000)
+    num_queries: int = Field(default=200, ge=10, le=2000)
+    reset_collections: bool = True
+    run_accuracy: bool = True
+    run_tradeoff: bool = True
+
+
 class TradeoffRequest(BaseModel):
     ingest: bool = False
 
