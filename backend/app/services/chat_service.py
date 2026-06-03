@@ -26,22 +26,35 @@ class ChatService:
             self._generator = LLMGenerator()
         return self._generator
 
-    def chat(self, query: str, db_name: str) -> dict:
+    def chat(self, query: str, db_name: str, top_k: int = TOP_K) -> dict:
         engine = db_service.get(db_name)
         if engine is None:
             raise ValueError(f"Database '{db_name}' is not connected.")
 
         t0 = time.perf_counter()
+        embedding_started = time.perf_counter()
         query_vector = self.embedder.embed_query(query)
-        context_chunks = engine.search(query_vector, top_k=TOP_K)
+        embedding_ms = (time.perf_counter() - embedding_started) * 1000
+
+        retrieval_started = time.perf_counter()
+        context_chunks = engine.search(query_vector, top_k=top_k)
+        retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
+
+        generation_started = time.perf_counter()
         with self._llm_lock:
             answer = self.generator.generate(query, context_chunks, db_name)
+        generation_ms = (time.perf_counter() - generation_started) * 1000
         latency = (time.perf_counter() - t0) * 1000
 
         return {
             "answer": answer,
             "db": db_name,
             "latency_ms": round(latency, 2),
+            "embedding_ms": round(embedding_ms, 2),
+            "retrieval_ms": round(retrieval_ms, 2),
+            "generation_ms": round(generation_ms, 2),
+            "total_ms": round(latency, 2),
+            "result_count": len(context_chunks),
             "context_chunks": context_chunks[:3],
             "model": LLM_MODEL,
             "embedding_model": EMBEDDING_MODEL,

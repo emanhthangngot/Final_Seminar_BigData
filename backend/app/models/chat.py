@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 class ChatRequest(BaseModel):
     query: str
     db: str = "Qdrant"
+    top_k: int = Field(default=5, ge=1, le=20)
 
 
 class CompareChatRequest(BaseModel):
@@ -15,6 +16,11 @@ class ChatResponse(BaseModel):
     answer: str
     db: str
     latency_ms: float
+    embedding_ms: float = 0
+    retrieval_ms: float = 0
+    generation_ms: float = 0
+    total_ms: float = 0
+    result_count: int = 0
     context_chunks: list[str] = []
     model: str
     embedding_model: str
