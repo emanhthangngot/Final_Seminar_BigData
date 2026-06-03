@@ -3,7 +3,7 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar,
   ResponsiveContainer
 } from 'recharts'
-import { recallPercentDomain } from '../../utils/benchmarkInsights'
+import { asRatio, formatPercent, recallPercentDomain } from '../../utils/benchmarkInsights'
 
 const DB_FILL = { Qdrant: '#EF4444', Weaviate: '#3B82F6', Milvus: '#10B981' }
 
@@ -14,7 +14,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       <p className="font-semibold text-gray-200">{label}</p>
       {payload.map((p) => (
         <p key={p.name} style={{ color: p.fill ?? p.stroke }}>
-          {p.name}: <span className="font-mono font-bold">{(p.value * 100).toFixed(1)}%</span>
+          {p.name}: <span className="font-mono font-bold">{formatPercent(p.value)}</span>
         </p>
       ))}
     </div>
@@ -25,11 +25,11 @@ export function RecallBarChart({ data }) {
   if (!data?.length) return <EmptyChart label="Run Accuracy Benchmark to see results" />
 
   const chartData = [
-    { k: 'Recall@1', ...Object.fromEntries(data.map((r) => [r.Engine, r['Recall@1']])) },
-    { k: 'Recall@5', ...Object.fromEntries(data.map((r) => [r.Engine, r['Recall@5']])) },
-    { k: 'Recall@10', ...Object.fromEntries(data.map((r) => [r.Engine, r['Recall@10']])) },
+    { k: 'Recall@1', ...Object.fromEntries(data.map((r) => [r.Engine, asRatio(r['Recall@1'])])) },
+    { k: 'Recall@5', ...Object.fromEntries(data.map((r) => [r.Engine, asRatio(r['Recall@5'])])) },
+    { k: 'Recall@10', ...Object.fromEntries(data.map((r) => [r.Engine, asRatio(r['Recall@10'])])) },
   ]
-  const recallDomain = recallPercentDomain(data.flatMap((r) => [r['Recall@1'], r['Recall@5'], r['Recall@10']]))
+  const recallDomain = recallPercentDomain(data.flatMap((r) => [asRatio(r['Recall@1']), asRatio(r['Recall@5']), asRatio(r['Recall@10'])]))
 
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -61,7 +61,7 @@ export function MRRRadarChart({ data }) {
   const axes = ['Recall@1', 'Recall@5', 'Recall@10', 'MRR']
   const radarData = axes.map((ax) => ({
     subject: ax,
-    ...Object.fromEntries(data.map((r) => [r.Engine, r[ax] ?? 0])),
+    ...Object.fromEntries(data.map((r) => [r.Engine, asRatio(r[ax] ?? 0)])),
   }))
 
   return (

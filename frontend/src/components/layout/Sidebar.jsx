@@ -2,27 +2,19 @@ import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard,
-  Zap,
-  Target,
-  TrendingUp,
-  GitMerge,
-  Code2,
+  BarChart3,
+  Database,
   MessageSquare,
-  ChevronDown,
   Cpu,
-  Sparkles,
-  Network,
 } from 'lucide-react'
 
 const NAV = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
-  { to: '/architecture', icon: Network, label: 'Architecture' },
-  { to: '/latency', icon: Zap, label: 'Latency' },
-  { to: '/accuracy', icon: Target, label: 'Accuracy' },
-  { to: '/tradeoff', icon: TrendingUp, label: 'Recall vs Latency' },
-  { to: '/dx-score', icon: Code2, label: 'DX Score' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/benchmark-workflow', icon: BarChart3, label: 'Benchmark Workflow' },
+  { to: '/databases/qdrant', icon: Database, label: 'Qdrant Demo' },
+  { to: '/databases/weaviate', icon: Database, label: 'Weaviate Demo' },
+  { to: '/databases/milvus', icon: Database, label: 'Milvus Demo' },
   { to: '/rag-chat', icon: MessageSquare, label: 'RAG Chat' },
-  { to: '/hybrid', icon: GitMerge, label: 'Hybrid Search' },
 ]
 
 export default function Sidebar() {
@@ -36,14 +28,13 @@ export default function Sidebar() {
           >
             VectorDB
           </motion.h1>
-          <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.24em] text-cyan/75">AI laboratory signature</p>
+          <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.24em] text-cyan/75">RAG benchmark</p>
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.055] p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-white">Benchmark OS</p>
-                <p className="mt-0.5 font-mono text-[10px] text-slate-500">prod-east / seminar</p>
+                <p className="text-xs font-semibold text-white">Local deployment</p>
+                <p className="mt-0.5 font-mono text-[10px] text-slate-500">Backend + 3 vector databases</p>
               </div>
-              <ChevronDown size={15} className="text-slate-400" />
             </div>
           </div>
         </div>
@@ -56,9 +47,9 @@ export default function Sidebar() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald opacity-40" />
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald" />
               </span>
-              <p className="text-xs font-semibold text-emerald">AI control plane online</p>
+              <p className="text-xs font-semibold text-emerald">Benchmark API</p>
             </div>
-            <p className="mt-2 font-mono text-[10px] text-slate-500">sync 14ms · uptime 99.97%</p>
+            <p className="mt-2 font-mono text-[10px] text-slate-500">/health, /benchmark/setup, /benchmark/full</p>
           </div>
         </div>
 
@@ -83,7 +74,6 @@ export default function Sidebar() {
                   )}
                   <Icon size={18} strokeWidth={1.8} className={isActive ? 'text-cyan' : 'text-slate-500 group-hover:text-cyan'} />
                   <span>{label}</span>
-                  {isActive && <Sparkles size={14} className="ml-auto text-primary" />}
                 </motion.div>
               )}
             </NavLink>
@@ -97,9 +87,9 @@ export default function Sidebar() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Engines</p>
             </div>
             {[
-              ['Qdrant', 'bg-qdrant', 'rose'],
-              ['Weaviate', 'bg-weaviate', 'cyan'],
-              ['Milvus', 'bg-milvus', 'emerald'],
+              ['Qdrant', 'bg-qdrant', 'payload filter'],
+              ['Weaviate', 'bg-weaviate', 'hybrid search'],
+              ['Milvus', 'bg-milvus', 'scale/load'],
             ].map(([db, dot, label]) => (
               <div key={db} className="mb-2 flex items-center justify-between last:mb-0">
                 <span className="flex items-center gap-2 text-xs text-slate-300"><span className={`h-2 w-2 rounded-full ${dot}`} />{db}</span>
@@ -107,7 +97,7 @@ export default function Sidebar() {
               </div>
             ))}
           </div>
-          <p className="mt-3 text-center font-mono text-[10px] uppercase tracking-[0.22em] text-slate-600">Big Data Seminar 2026</p>
+          <p className="mt-3 text-center font-mono text-[10px] uppercase tracking-[0.22em] text-slate-600">RAG retrieval benchmark</p>
         </div>
       </div>
     </aside>

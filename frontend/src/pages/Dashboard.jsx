@@ -1,176 +1,154 @@
-import { Suspense, lazy } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
+import { ArrowRight, BarChart3, Database, Server } from 'lucide-react'
 import DBBadge from '../components/ui/DBBadge'
 import { api } from '../services/api'
-import {
-  activeEngineCount,
-  formatLatency,
-  latencySummaryByDb,
-} from '../utils/benchmarkInsights'
+import { DB_DEMOS } from '../utils/databaseDemos'
+import { activeEngineCount, formatPercent, tradeoffConclusion } from '../utils/benchmarkInsights'
 
-const VectorSpaceScene = lazy(() => import('../components/three/VectorSpaceScene'))
-const PerformanceGlobe = lazy(() => import('../components/three/PerformanceGlobe'))
+const DBS = ['Qdrant', 'Weaviate', 'Milvus']
 
-const FADE_UP = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }
-const DB_BASICS = [
-  {
-    db: 'Qdrant',
-    implementation: 'Rust',
-    focus: 'Vector search combined with payload metadata filtering, plus compression options such as binary quantization for faster search and lower memory pressure.',
-    ragRole: 'A strong choice when the demo needs quick semantic retrieval, practical hybrid filtering, and simple self-hosted deployment.',
-    details: ['Vector + metadata search', 'Binary quantization', 'Apache 2.0 / Docker self-host'],
-  },
-  {
-    db: 'Weaviate',
-    implementation: 'Go',
-    focus: 'Schema-driven vector database with native hybrid retrieval, ML framework integrations, and support for multimodal data pipelines.',
-    ragRole: 'Useful when RAG queries need both keyword evidence and semantic similarity, especially with richer object schemas or multimodal content.',
-    details: ['BM25 + vector hybrid', 'ML integrations', 'BSD-3 / self-host or sandbox'],
-  },
-  {
-    db: 'Milvus',
-    implementation: 'C++ / Go',
-    focus: 'Distributed vector database designed for very large collections, advanced index choices, and acceleration options including GPU-backed workloads.',
-    ragRole: 'Best suited when the benchmark emphasizes scale, collection management, and high-throughput vector search over billions of embeddings.',
-    details: ['Billion-scale clusters', 'GPU acceleration', 'Apache 2.0 / Zilliz free tier'],
-  },
-]
+function MetricCard({ label, value, tone = 'text-white' }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+      <p className={`font-mono text-xl font-bold ${tone}`}>{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{label}</p>
+    </div>
+  )
+}
+
+function SectionTitle({ eyebrow, title }) {
+  return (
+    <div className="mb-4">
+      <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan/75">{eyebrow}</p>
+      <h2 className="mt-1 text-xl font-bold text-white md:text-2xl">{title}</h2>
+    </div>
+  )
+}
 
 export default function Dashboard() {
   const { data: health } = useQuery({ queryKey: ['health'], queryFn: api.getHealth, refetchInterval: 10_000 })
-  const { data: metrics } = useQuery({ queryKey: ['metrics'], queryFn: api.getMetrics, refetchInterval: 30_000 })
-  const { data: accuracyResults } = useQuery({
-    queryKey: ['benchmark', 'accuracy', 'latest'],
-    queryFn: api.getLatestAccuracyBenchmark,
-    staleTime: 60_000,
-  })
+  const { data: setup } = useQuery({ queryKey: ['benchmark', 'setup'], queryFn: api.getBenchmarkSetup })
+  const { data: accuracy = [] } = useQuery({ queryKey: ['benchmark', 'accuracy', 'latest'], queryFn: api.getLatestAccuracyBenchmark })
+  const { data: tradeoff = [] } = useQuery({ queryKey: ['benchmark', 'tradeoff', 'latest'], queryFn: api.getLatestTradeoffSweep })
 
-  const dbs = ['Qdrant', 'Weaviate', 'Milvus']
-  const latencyByDb = latencySummaryByDb({ accuracyResults, metrics, dbs })
-  const avgLatency = (db) => formatLatency(latencyByDb[db])
-  const onlineEngines = activeEngineCount(health, dbs)
-  const activeEngineDisplay = health?.databases ? String(onlineEngines) : String(dbs.length)
-  const globeMetrics = Object.fromEntries(dbs.map((db) => {
-    const value = latencyByDb[db]
-    return [db, Number.isFinite(value) ? Math.max(0.15, Math.min(1, 1 - value / 100)) : 0.45]
-  }))
+  const onlineCount = activeEngineCount(health, DBS)
+  const bestAccuracy = [...accuracy].sort((a, b) => Number(b['Recall@10'] ?? 0) - Number(a['Recall@10'] ?? 0))[0]
+  const conclusion = tradeoffConclusion(tradeoff)
 
   return (
-    <motion.div variants={{ show: { transition: { staggerChildren: 0.06 } } }} initial="hidden" animate="show" className="space-y-5">
-      <motion.section variants={FADE_UP} className="card-glow grid min-h-[170px] grid-cols-1 gap-5 p-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+      <section className="card-glow p-6">
+        <div className="relative z-10 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-cyan/75">Overview</p>
+            <h1 className="hero-title mt-2">Vector Database RAG Benchmark</h1>
+            <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400">
+              Tổng quan môi trường local, cấu hình RAG, tình trạng ba vector database và kết quả benchmark mới nhất.
+              Các demo chi tiết được tách riêng theo từng database và workflow benchmark.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <MetricCard label="Databases online" value={`${health?.databases ? onlineCount : 0}/3`} tone="text-emerald" />
+            <MetricCard label="Mode" value={setup?.runtime?.mock_mode ? 'mock' : 'real'} tone={setup?.runtime?.mock_mode ? 'text-amber-300' : 'text-emerald'} />
+            <MetricCard label="LLM" value={setup?.runtime?.llm_model ?? 'qwen2.5:1.5b'} />
+            <MetricCard label="Embedding" value={setup?.runtime?.embedding_model ?? 'nomic-embed-text'} />
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="card p-5">
+          <div className="relative z-10">
+            <SectionTitle eyebrow="local setup" title="Cấu hình triển khai hiện tại" />
+            <div className="grid gap-3 md:grid-cols-3">
+              {DBS.map((db) => {
+                const dbSetup = setup?.databases?.[db] ?? {}
+                return (
+                  <div key={db} className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <DBBadge name={db} />
+                      <span className={`h-2.5 w-2.5 rounded-full ${health?.databases?.[db] ? 'bg-emerald' : 'bg-slate-600'}`} />
+                    </div>
+                    <div className="space-y-2 text-xs text-slate-400">
+                      <p><span className="text-slate-500">Ports:</span> {dbSetup.ports?.join(', ') ?? 'n/a'}</p>
+                      <p><span className="text-slate-500">RAM:</span> {dbSetup.ram_limit ?? 'n/a'}</p>
+                      <p><span className="text-slate-500">Collection:</span> {dbSetup.collection ?? 'n/a'}</p>
+                      <p><span className="text-slate-500">Deps:</span> {dbSetup.dependencies?.length ? dbSetup.dependencies.join(', ') : 'none'}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="mt-4 rounded-xl border border-cyan/15 bg-cyan/5 p-4 text-sm leading-6 text-slate-300">
+              Shared config: {setup?.fairness?.vector_dim ?? 768} dimensions, {setup?.fairness?.distance_metric ?? 'COSINE'}, {setup?.fairness?.index_type ?? 'HNSW'},
+              M={setup?.fairness?.hnsw_m ?? 16}, ef_search={setup?.fairness?.ef_search ?? 64}.
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          <div className="card p-5">
+            <div className="relative z-10">
+              <SectionTitle eyebrow="latest result" title="Benchmark mới nhất" />
+              <div className="grid gap-3">
+                <MetricCard label="Best Recall@10" value={bestAccuracy ? `${bestAccuracy.Engine} · ${formatPercent(bestAccuracy['Recall@10'])}` : 'n/a'} />
+                <MetricCard label="Accuracy rows" value={accuracy.length} />
+                <MetricCard label="Trade-off rows" value={tradeoff.length} />
+              </div>
+              <p className="mt-4 text-sm leading-6 text-slate-400">{conclusion}</p>
+              <Link to="/benchmark-workflow" className="btn-primary mt-4 w-full justify-center py-3">
+                <BarChart3 size={15} />
+                Open Benchmark Workflow
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="card p-5">
         <div className="relative z-10">
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-cyan/20 bg-cyan/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">overview</span>
-            <span className="rounded-full border border-emerald/20 bg-emerald/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.24em] text-emerald">live RAG benchmark</span>
-          </div>
-          <h1 className="hero-title max-w-4xl">Compare Qdrant, Weaviate, and Milvus for real RAG workloads.</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-400">
-            This dashboard summarizes the current health and benchmark signals for the three vector databases used by the RAG chat system. Use it to check which engines are online, compare search latency, review retrieval quality, and decide where to investigate next.
-          </p>
-          <div className="mt-5 grid max-w-3xl gap-3 text-xs text-slate-400 md:grid-cols-3">
-            <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
-              <p className="font-semibold text-slate-200">1. Check availability</p>
-              <p className="mt-1 leading-5">Confirm Qdrant, Weaviate, and Milvus are connected before running comparisons.</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
-              <p className="font-semibold text-slate-200">2. Compare latency</p>
-              <p className="mt-1 leading-5">Use average search time to spot retrieval bottlenecks across engines.</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
-              <p className="font-semibold text-slate-200">3. Review tradeoffs</p>
-              <p className="mt-1 leading-5">Pair dashboard signals with accuracy, hybrid, and RAG chat results.</p>
-            </div>
+          <SectionTitle eyebrow="database demos" title="Demo điểm nổi bật theo từng database" />
+          <div className="grid gap-3 md:grid-cols-3">
+            {Object.values(DB_DEMOS).map((demo) => {
+              const Icon = demo.icon
+              return (
+                <Link key={demo.name} to={demo.route} className="rounded-xl border border-white/10 bg-white/[0.035] p-4 transition hover:border-cyan/30 hover:bg-cyan/5">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <DBBadge name={demo.name} />
+                    <Icon size={17} className="text-cyan" />
+                  </div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-cyan/70">{demo.label}</p>
+                  <h3 className="mt-2 text-base font-bold text-white">{demo.title}</h3>
+                  <p className="mt-2 text-xs leading-5 text-slate-400">{demo.focus}</p>
+                  <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-cyan">
+                    Open demo <ArrowRight size={13} />
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         </div>
-        <div className="relative z-10 grid grid-cols-2 gap-3">
-          {[
-            ['Active engines', activeEngineDisplay],
-            ['Refresh cadence', '10s'],
-            ['Compared DBs', '3'],
-            ['Runtime mode', health?.rag?.mock_mode ? 'mock' : 'real'],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-              <p className="font-mono text-xl font-bold text-white">{value}</p>
-              <p className="mt-1 text-xs text-slate-500">{label}</p>
-            </div>
-          ))}
-        </div>
-      </motion.section>
+      </section>
 
-      <motion.div variants={FADE_UP} className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-        <div className="card ambient-border relative h-[460px] overflow-hidden">
-          <Suspense fallback={<div className="h-full skeleton" />}>
-            <VectorSpaceScene />
-          </Suspense>
-          <div className="pointer-events-none absolute left-6 top-5 z-10">
-            <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-cyan/75">retrieval space</p>
-            <h2 className="mt-2 font-display text-2xl font-bold text-white">Embedding cluster view</h2>
-            <p className="mt-2 max-w-sm text-xs leading-5 text-slate-400">A visual map for how the active corpus is distributed in vector space.</p>
-          </div>
-          <div className="absolute bottom-5 left-6 right-6 z-10 grid grid-cols-3 gap-3">
-            {dbs.map((db) => (
-              <div key={db} className="rounded-2xl border border-white/10 bg-[#081025]/70 p-3 backdrop-blur-xl">
-                <DBBadge name={db} />
-                <p className="mt-2 font-mono text-xs text-slate-500">{avgLatency(db)}ms avg search</p>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="card relative h-[460px] overflow-hidden">
-          <Suspense fallback={<div className="h-full skeleton" />}>
-            <PerformanceGlobe metrics={globeMetrics} />
-          </Suspense>
-          <div className="pointer-events-none absolute left-6 top-5 z-10">
-            <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-primary/80">system health</p>
-            <h2 className="mt-2 font-display text-2xl font-bold text-white">Engine performance signal</h2>
-            <p className="mt-2 max-w-xs text-xs leading-5 text-slate-400">A compact health view based on the latest benchmark and telemetry data.</p>
-          </div>
-          <div className="absolute bottom-5 left-5 right-5 z-10 rounded-2xl border border-white/10 bg-white/[0.055] p-4 backdrop-blur-xl">
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Current setup</p>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div>
-                <p className="font-mono text-lg font-bold text-white">{activeEngineDisplay}</p>
-                <p className="text-[11px] text-slate-500">online</p>
-              </div>
-              <div>
-                <p className="font-mono text-lg font-bold text-white">{health?.rag?.model ?? 'qwen2.5:1.5b'}</p>
-                <p className="text-[11px] text-slate-500">LLM</p>
-              </div>
-              <div>
-                <p className="font-mono text-lg font-bold text-white">{health?.rag?.mock_mode ? 'mock' : 'real'}</p>
-                <p className="text-[11px] text-slate-500">mode</p>
-              </div>
+      <section className="card p-5">
+        <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-3">
+            <Server size={18} className="mt-1 text-cyan" />
+            <div>
+              <h2 className="text-lg font-bold text-white">RAG flow</h2>
+              <p className="mt-1 text-sm leading-6 text-slate-400">
+                Upload tài liệu, chunk text, embed query, retrieve evidence trong database đã chọn, sau đó sinh câu trả lời bằng LLM.
+              </p>
             </div>
           </div>
+          <Link to="/rag-chat" className="btn-secondary justify-center py-3">
+            <Database size={15} />
+            Open RAG Chat
+          </Link>
         </div>
-      </motion.div>
-
-      <motion.div variants={FADE_UP} className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
-        {DB_BASICS.map(({ db, implementation, focus, ragRole, details }) => (
-          <div key={db} className="card group p-5">
-            <div className="relative z-10 space-y-3">
-              <DBBadge name={db} />
-              <p className="font-mono text-xs text-slate-500">Implementation: {implementation}</p>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Core focus</p>
-                <p className="mt-1 leading-6 text-slate-300">{focus}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">RAG role</p>
-                <p className="mt-1 leading-6 text-slate-400">{ragRole}</p>
-              </div>
-              <div className="flex flex-wrap gap-2 pt-1">
-                {details.map((item) => (
-                  <span key={item} className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-1 text-[11px] text-slate-400">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        ))}
-      </motion.div>
+      </section>
     </motion.div>
   )
 }

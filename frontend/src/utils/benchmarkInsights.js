@@ -1,5 +1,13 @@
 const SEARCH_OP = 'search'
 
+export const asRatio = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return 0
+  return numeric > 1 ? numeric / 100 : numeric
+}
+
+export const formatPercent = (value, digits = 1) => `${(asRatio(value) * 100).toFixed(digits)}%`
+
 export const averageSearchLatencyByDb = (metrics = [], dbs = []) =>
   Object.fromEntries(dbs.map((db) => {
     const rows = metrics.filter((row) => row.Engine === db && row.Operation === SEARCH_OP)
@@ -55,7 +63,7 @@ export const tradeoffConclusion = (rows = []) => {
     .map((row) => ({
       engine: row.Engine,
       topK: Number(row.top_k),
-      recall: Number(row.Recall),
+      recall: asRatio(row.Recall),
       latency: Number(row.AvgLatency_ms),
     }))
     .filter((row) => row.engine && Number.isFinite(row.recall) && Number.isFinite(row.latency))
@@ -70,10 +78,10 @@ export const tradeoffConclusion = (rows = []) => {
   const lowLatencyBest = [...lowLatencyRows].sort((a, b) => b.recall - a.recall || a.latency - b.latency)[0]
 
   if (lowLatencyBest.engine === bestRecall.engine && lowLatencyBest.topK === bestRecall.topK) {
-    return `${bestRecall.engine} reaches the strongest observed recall (${bestRecall.recall.toFixed(1)}%) at top_k=${bestRecall.topK} with ${bestRecall.latency.toFixed(2)} ms average latency. Use that point for recall-sensitive demos, then tune top_k down only when latency budget tightens.`
+    return `${bestRecall.engine} đạt recall quan sát cao nhất (${formatPercent(bestRecall.recall)}) tại top_k=${bestRecall.topK} với latency trung bình ${bestRecall.latency.toFixed(2)} ms. Dùng cấu hình này khi ưu tiên recall; giảm top_k khi cần giới hạn latency.`
   }
 
-  return `${bestRecall.engine} reaches the strongest observed recall (${bestRecall.recall.toFixed(1)}%) at top_k=${bestRecall.topK}, while ${lowLatencyBest.engine} gives the best sub-${lowLatencyThreshold.toFixed(0)} ms recall (${lowLatencyBest.recall.toFixed(1)}%). Route by recall target first, then by SDK maturity.`
+  return `${bestRecall.engine} đạt recall quan sát cao nhất (${formatPercent(bestRecall.recall)}) tại top_k=${bestRecall.topK}. ${lowLatencyBest.engine} có recall tốt nhất trong nhóm dưới ${lowLatencyThreshold.toFixed(0)} ms (${formatPercent(lowLatencyBest.recall)}). Chọn cấu hình theo mục tiêu recall trước, sau đó kiểm tra giới hạn latency.`
 }
 
 export const recallPercentDomain = (values = []) => {

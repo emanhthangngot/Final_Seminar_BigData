@@ -75,6 +75,20 @@ export const api = {
       normalizeRecall(await readCSV('/benchmark-data/combined/tradeoff.csv'), ['Recall'])
     ),
 
+  getBenchmarkSetup: () => http.get('/benchmark/setup'),
+
+  startFullBenchmark: (config = {}) =>
+    http.post('/benchmark/full', {
+      corpus_size: config.corpusSize ?? 10_000,
+      num_queries: config.numQueries ?? 200,
+      reset_collections: config.resetCollections ?? true,
+      run_accuracy: config.runAccuracy ?? true,
+      run_tradeoff: config.runTradeoff ?? true,
+    }),
+
+  getBenchmarkJob: (jobId) => http.get(`/benchmark/jobs/${jobId}`),
+  getLatestBenchmarkJob: () => http.get('/benchmark/jobs/latest'),
+
   runStressTest: (rounds, chunksPerRound) =>
     http.post('/benchmark/stress', { rounds, chunks_per_round: chunksPerRound }),
 
@@ -84,16 +98,13 @@ export const api = {
   runTradeoffSweep: (ingest) =>
     http.post('/benchmark/tradeoff', { ingest }),
 
-  runHybridBenchmark: (query, filters, topK) =>
-    http.post('/benchmark/hybrid', { query, filters, top_k: topK }),
+  runHybridBenchmark: (query, filters, topK, alpha) =>
+    http.post('/benchmark/hybrid', { query, filters, top_k: topK, alpha }),
 
   getBenchmarkReport: () => http.get('/benchmark/report'),
 
-  // DX Score
-  getDXScore: () => http.get('/dx'),
-
   // RAG Chat
-  chat: (query, db) => http.post('/chat', { query, db }),
+  chat: (query, db, topK = 5) => http.post('/chat', { query, db, top_k: topK }),
   compareChat: (query, topK = 5) => http.post('/chat/compare', { query, top_k: topK }),
 
   // Resources

@@ -3,13 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
-const LatencyPage = lazy(() => import('./pages/LatencyPage'))
-const AccuracyPage = lazy(() => import('./pages/AccuracyPage'))
-const TradeoffPage = lazy(() => import('./pages/TradeoffPage'))
-const HybridPage = lazy(() => import('./pages/HybridPage'))
-const DXScorePage = lazy(() => import('./pages/DXScorePage'))
+const BenchmarkWorkflowPage = lazy(() => import('./pages/BenchmarkWorkflowPage'))
+const DatabaseDemoPage = lazy(() => import('./pages/DatabaseDemoPage'))
 const RAGChatPage = lazy(() => import('./pages/RAGChatPage'))
-const ArchitecturePage = lazy(() => import('./pages/ArchitecturePage'))
 
 function PageFallback() {
   return (
@@ -30,12 +26,14 @@ export default function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="latency" element={<LatencyPage />} />
-            <Route path="accuracy" element={<AccuracyPage />} />
-            <Route path="tradeoff" element={<TradeoffPage />} />
-            <Route path="hybrid" element={<HybridPage />} />
-            <Route path="architecture" element={<ArchitecturePage />} />
-            <Route path="dx-score" element={<DXScorePage />} />
+            <Route path="benchmark-workflow" element={<BenchmarkWorkflowPage />} />
+            <Route path="databases/:db" element={<DatabaseDemoPage />} />
+            <Route path="latency" element={<Navigate to="/benchmark-workflow" replace />} />
+            <Route path="accuracy" element={<Navigate to="/benchmark-workflow" replace />} />
+            <Route path="tradeoff" element={<Navigate to="/benchmark-workflow" replace />} />
+            <Route path="hybrid" element={<Navigate to="/databases/weaviate" replace />} />
+            <Route path="architecture" element={<Navigate to="/dashboard" replace />} />
+            <Route path="dx-score" element={<Navigate to="/dashboard" replace />} />
             <Route path="rag-chat" element={<RAGChatPage />} />
           </Route>
         </Routes>

@@ -2,7 +2,7 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, LabelList
 } from 'recharts'
-import { recallPercentDomain } from '../../utils/benchmarkInsights'
+import { asRatio, formatPercent, recallPercentDomain } from '../../utils/benchmarkInsights'
 
 const DB_COLORS = { Qdrant: '#EF4444', Weaviate: '#3B82F6', Milvus: '#10B981' }
 
@@ -13,7 +13,7 @@ const CustomTooltip = ({ active, payload }) => {
     <div className="rounded-2xl border border-cyan/20 bg-[#0b1024]/95 px-3 py-2 text-xs shadow-glow backdrop-blur-xl space-y-1">
       <p className="font-semibold" style={{ color: DB_COLORS[d.Engine] }}>{d.Engine}</p>
       <p className="text-gray-300">top_k = <span className="font-mono font-bold">{d.top_k}</span></p>
-      <p className="text-gray-300">Recall = <span className="font-mono font-bold">{(d.Recall * 100).toFixed(1)}%</span></p>
+      <p className="text-gray-300">Recall = <span className="font-mono font-bold">{formatPercent(d.Recall)}</span></p>
       <p className="text-gray-300">Latency = <span className="font-mono font-bold">{d.AvgLatency_ms?.toFixed(1)} ms</span></p>
     </div>
   )
@@ -23,7 +23,7 @@ export default function TradeoffCurve({ data }) {
   if (!data?.length) {
     return (
       <div className="h-[340px] flex items-center justify-center text-gray-400 text-sm">
-        Run Tradeoff Sweep to see the Recall vs Latency Pareto curve
+        Run Benchmark Workflow to see the recall and latency trade-off curve.
       </div>
     )
   }
@@ -31,14 +31,17 @@ export default function TradeoffCurve({ data }) {
   const byDB = Object.entries(DB_COLORS).map(([db, color]) => ({
     db,
     color,
-    points: data.filter((r) => r.Engine === db).sort((a, b) => a.AvgLatency_ms - b.AvgLatency_ms),
+    points: data
+      .filter((r) => r.Engine === db)
+      .map((r) => ({ ...r, Recall: asRatio(r.Recall) }))
+      .sort((a, b) => a.AvgLatency_ms - b.AvgLatency_ms),
   }))
   const recallDomain = recallPercentDomain(data.map((row) => row.Recall))
 
   return (
     <div>
       <p className="mb-3 text-sm text-slate-400">
-        The highlighted frontier exposes the best operational tradeoff: highest recall at the lowest observed latency.
+        The curve shows how recall changes when top_k increases and how that affects average latency.
       </p>
       <ResponsiveContainer width="100%" height={320}>
         <ScatterChart margin={{ top: 8, right: 24, left: -8, bottom: 8 }}>

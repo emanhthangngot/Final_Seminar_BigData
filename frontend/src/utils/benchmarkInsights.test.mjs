@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import {
   activeEngineCount,
+  asRatio,
   averageSearchLatencyByDb,
   dashboardRecommendation,
+  formatPercent,
   latencySummaryByDb,
   recallPercentDomain,
   tradeoffConclusion,
@@ -53,9 +55,21 @@ const tradeoff = [
 ]
 
 const conclusion = tradeoffConclusion(tradeoff)
-assert.match(conclusion, /^Qdrant reaches the strongest observed recall/)
+assert.match(conclusion, /^Qdrant đạt recall quan sát cao nhất/)
 assert.match(conclusion, /27\.0%/)
 assert.doesNotMatch(conclusion, /90%/)
+
+assert.equal(asRatio(80), 0.8)
+assert.equal(asRatio(0.8), 0.8)
+assert.equal(formatPercent(0.8), '80.0%')
+assert.equal(formatPercent(80), '80.0%')
+
+const ratioConclusion = tradeoffConclusion([
+  { Engine: 'Milvus', top_k: 50, Recall: 0.8, AvgLatency_ms: 4.17 },
+  { Engine: 'Qdrant', top_k: 50, Recall: 0.27, AvgLatency_ms: 5.82 },
+])
+assert.match(ratioConclusion, /80\.0%/)
+assert.doesNotMatch(ratioConclusion, /0\.8%/)
 
 assert.deepEqual(recallPercentDomain([0.03, 0.095, 0.27]), [0, 0.3])
 assert.deepEqual(recallPercentDomain([0.65, 0.92]), [0, 1])
