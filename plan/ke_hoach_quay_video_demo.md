@@ -1,253 +1,292 @@
-# Kịch bản & Hướng dẫn Quay Video Demo Chi tiết (Director's Cut - Expanded Edition)
-**Đề tài:** A triple of Vectorstore: Qdrant, Weaviate, and Milvus  
-**Mục đích:** Hướng dẫn quay màn hình trước (không thu âm live), lồng tiếng khớp miệng/lời thoại sau. Bản nâng cấp này bổ sung chi tiết về thiết lập (setup), cấu hình (config) vật lý của từng database, các tính năng nổi bật đối chiếu so sánh trực tiếp, và phân tích sâu hơn về benchmark chung để bài thuyết trình đạt tính thuyết phục khoa học cao nhất trước Hội đồng.
+# Kế hoạch quay video demo Vector DB RAG Benchmark
+
+**Mục tiêu video:** Chứng minh bằng demo và số liệu thực nghiệm rằng Qdrant, Weaviate, Milvus không có một "người thắng tuyệt đối"; mỗi DB vượt trội trong một trường hợp RAG cụ thể.  
+**Hướng trình bày:** Nói ít về kiến trúc, tập trung vào case nào DB nào thắng 2 DB còn lại, vì sao thắng, metric nào chứng minh.  
+**Tổng thời lượng gợi ý:** 8-10 phút.  
+**URL demo:** `http://localhost:5173/dashboard`
+
+## Chuẩn bị trước khi quay
+
+1. Mở Chrome/Brave ở độ phân giải 1920x1080.
+2. Zoom trình duyệt 110-125%, tùy màn hình. Nếu chữ nhỏ thì dùng 125%.
+3. Ẩn bookmark bar bằng `Ctrl + Shift + B`.
+4. Chạy sẵn container:
+   ```bash
+   docker compose up -d
+   ```
+5. Kiểm tra nhanh:
+   - `http://localhost:5173/dashboard`
+   - `http://localhost:5173/databases/qdrant`
+   - `http://localhost:5173/databases/weaviate`
+   - `http://localhost:5173/databases/milvus`
+   - `http://localhost:5173/benchmark-workflow`
+6. Khi quay, di chuyển chuột chậm. Mỗi lần nói về một số liệu, đưa chuột vào đúng biểu đồ hoặc bảng số liệu đó.
+
+## Thông điệp chính cần lặp lại
+
+- **Qdrant thắng** khi RAG cần metadata guardrail chặt: tenant, ACL, source, page, category.
+- **Weaviate thắng** khi query vừa cần keyword exact-match vừa cần semantic vector: technical terms, mã lỗi, log, catalog.
+- **Milvus thắng** khi mục tiêu là recall cao với `top_k` lớn, sau khi collection đã load vào RAM.
+- **Benchmark chung** dùng Recall@K, MRR, Avg Latency và Recall/Latency trade-off để cho thấy không có DB nào tốt nhất trong mọi điều kiện.
 
 ---
 
-## 🎬 NGUYÊN TẮC QUAY VIDEO DEMO ĐẠT CHẤT LƯỢNG CAO
-1. **Độ phân giải màn hình:** Quay ở chuẩn Full HD 1080p (`1920x1080`). Không quay màn hình 2K/4K vì chữ sẽ bị quá nhỏ khi trình chiếu.
-2. **Tỉ lệ thu phóng trình duyệt (Zoom):** Tăng zoom của Google Chrome/Brave lên **120%** hoặc **125%** để các bảng số liệu và chữ hiện lên cực kỳ to và sắc nét.
-3. **Ẩn thanh dấu trang (Bookmark Bar):** Nhấn `Ctrl + Shift + B` (trên Windows/Linux) hoặc `Cmd + Shift + B` (trên Mac) để ẩn thanh bookmark giúp giao diện rộng rãi và chuyên nghiệp hơn.
-4. **Tốc độ di chuyển chuột (Mouse movement):** Di chuyển chuột chậm rãi, mượt mà. Không vẩy chuột quá nhanh. Khi nói đến vùng dữ liệu nào, hãy **di chuyển chuột quanh vùng đó hoặc hover để kích hoạt tooltip**, tránh chỉ chuột lung tung.
+# Timeline quay và lời thoại chi tiết
+
+## Phần 1 - Mở đầu và Dashboard tổng quan
+
+**Thời gian:** 00:00 - 01:00  
+**Trang:** `/dashboard`  
+**Mục tiêu:** Giới thiệu nhanh hệ thống, cho thấy 3 DB online và local setup, không đi sâu kiến trúc.
+
+### 00:00 - 00:15
+
+**Thao tác:** Mở `/dashboard`. Đưa chuột vào khu vực `Databases online`, `Mode`, `LLM`, `Embedding`.
+
+**Lời thoại:**
+
+"Kính thưa thầy và các bạn, đây là web demo benchmark RAG của nhóm. Hệ thống chạy local bằng Docker Compose và so sánh trực tiếp ba vector database: Qdrant, Weaviate và Milvus. Ở phần trên dashboard, mình có thể thấy cả ba database đang online, model sinh câu trả lời là Qwen local qua Ollama, và embedding model là nomic-embed-text."
+
+### 00:15 - 00:35
+
+**Thao tác:** Đưa chuột vào visualization 3 dòng trong dashboard. Di chuột lần lượt từ dòng Qdrant, Weaviate, Milvus.
+
+**Lời thoại:**
+
+"Visualization này chỉ dùng để định vị ba database trong demo. Em đã tách thành ba dòng riêng: Qdrant ở trên, Weaviate ở giữa, Milvus ở dưới. Phần quan trọng không phải là hình ảnh, mà là những case thực nghiệm bên dưới: mỗi database sẽ có một tình huống cụ thể mà nó vượt trội hơn hai database còn lại."
+
+### 00:35 - 01:00
+
+**Thao tác:** Cuộn xuống `Cấu hình triển khai hiện tại`. Đưa chuột qua từng card Qdrant, Weaviate, Milvus; chỉ nhanh vào `Shared config`.
+
+**Lời thoại:**
+
+"Về setup, Qdrant và Weaviate chạy như các service độc lập, còn Milvus có thêm etcd và MinIO. Để đảm bảo công bằng, cả ba cùng dùng vector 768 chiều, cùng metric Cosine và cùng cấu hình HNSW. Sau đây, em sẽ không nói nhiều về kiến trúc nữa, mà đi thẳng vào câu hỏi: trong trường hợp nào database nào thắng?"
 
 ---
 
-## 🛠️ CHI TIẾT THIẾT LẬP (SETUP) & CẤU HÌNH (CONFIG) VẬT LÝ TRONG WEB
-Hệ thống Benchmark RAG full-stack được triển khai hoàn toàn bằng Docker Compose, chạy trên mạng cầu chung (`seminar_net`). Dưới đây là thông số thiết lập chi tiết của từng database:
+## Phần 2 - Qdrant: thắng trong selective metadata guardrail
 
-### 1. Bảng cấu hình hạ tầng Docker Compose
+**Thời gian:** 01:00 - 02:25  
+**Trang:** `/databases/qdrant`  
+**Mục tiêu:** Chứng minh Qdrant thắng khi filter metadata loại bỏ candidate nhanh.
 
-| Thông số | Qdrant | Weaviate | Milvus Standalone |
-| :--- | :--- | :--- | :--- |
-| **Docker Image** | `qdrant/qdrant:latest` | `semitechnologies/weaviate:1.27.2` | `milvusdb/milvus:latest` |
-| **Tài nguyên (RAM Limit)** | `1 GB` | `1 GB` | `2 GB` (do kiến trúc nhiều service phụ) |
-| **Ports mở rộng (Host)** | `6333` (HTTP), `6334` (gRPC) | `8080` (HTTP), `50051` (gRPC) | `19530` (gRPC), `9091` (HTTP API) |
-| **Tầng lưu trữ (Volume)** | `./volumes/qdrant_data` | `./volumes/weaviate_data` | `./volumes/milvus_data` |
-| **Dependencies đi kèm** | Không (Single Binary) | Không (Single Binary) | `etcd` (v3.5.5 - lưu metadata)<br>`MinIO` (RELEASE.2023-03-20 - Object Storage) |
-| **Biến môi trường lõi** | Mặc định | `QUERY_DEFAULTS_LIMIT: 25`<br>`DEFAULT_VECTORIZER_MODULE: 'none'` | `ETCD_ENDPOINTS: etcd:2379`<br>`MINIO_ADDRESS: minio:9000` |
+### 01:00 - 01:15
 
-### 2. Giao thức Công bằng (Fairness Protocol) & Cấu hình Chỉ mục HNSW
-Để kết quả so sánh đạt tính khách quan khoa học, cả 3 cơ sở dữ liệu vector đều được ép cấu hình chỉ mục (Index Params) giống hệt nhau ở tầng Backend Python (`src/config.py`):
-*   **Mô hình Embedding:** `nomic-embed-text` (Ollama) sinh vector dense có số chiều **`VECTOR_DIM = 768`**.
-*   **Metric khoảng cách (Distance Metric):** `COSINE` (đo độ tương đồng góc cosine giữa các vector).
-*   **Loại chỉ mục (Index Type):** `HNSW` (Hierarchical Navigable Small World).
-*   **Tham số HNSW dựng đồ thị:**
-    *   `M = 16` (Số liên kết tối đa của mỗi node vector trên đồ thị).
-    *   `ef_construction = 128` (Độ sâu tìm kiếm trong quá trình build index đồ thị).
-*   **Tham số HNSW tìm kiếm (Query):**
-    *   `ef_search = 64` (Độ sâu tìm kiếm trong quá trình query đồ thị).
+**Thao tác:** Click `Qdrant Demo` hoặc vào `/databases/qdrant`. Đưa chuột vào title `Edge case: selective payload guardrail`.
 
-### 3. Cách thức Setup Collection / Schema trong Python (`src/core/db_clients/`)
+**Lời thoại:**
 
-*   **Qdrant (`qdrant.py`):**
-    *   Khởi tạo qua `QdrantClient(prefer_grpc=True)`.
-    *   Tự động kiểm tra collection `SeminarKnowledge_Base`. Nếu chưa có, tạo mới bằng `client.create_collection` cấu hình `vectors_config` với `distance=models.Distance.COSINE` và truyền trực tiếp cấu hình HNSW `models.HnswConfigDiff(m=16, ef_construct=128)`.
-*   **Weaviate (`weaviate.py`):**
-    *   Khởi tạo qua kết nối local `weaviate.connect_to_local()`.
-    *   Định nghĩa Schema chặt chẽ gồm 5 thuộc tính: `content` (TEXT - chứa chunk văn bản), `source` (TEXT), `chunk_id` (TEXT), `category` (TEXT), và `page` (INT - số trang).
-    *   Vô hiệu hóa bộ vectorizer tự động bằng `Configure.Vectorizer.none()` (do backend tự dùng Ollama nhúng).
-    *   Ép cấu hình HNSW thông qua `Configure.VectorIndex.hnsw(distance_metric=VectorDistances.COSINE, max_connections=16, ef_construction=128, ef=64)`.
-*   **Milvus (`milvus.py`):**
-    *   Kết nối qua `connections.connect()`.
-    *   Tạo Schema dạng bảng quan hệ chặt chẽ: `id` (INT64 primary key, auto_id), `content` (VARCHAR tối đa 65,535 ký tự), `vector` (FLOAT_VECTOR chiều 768), cùng các trường metadata `source` (VARCHAR), `category` (VARCHAR), và `page` (INT64).
-    *   Gọi lệnh tạo index tường minh: `collection.create_index("vector", {"metric_type": "COSINE", "index_type": "HNSW", "params": {"M": 16, "efConstruction": 128}})`.
-    *   **Đặc thù Milvus:** Phải thực hiện lệnh `collection.load()` để nạp bộ chỉ mục từ ổ đĩa lên RAM thì mới sẵn sàng tìm kiếm. Đoạn mã có tích hợp đo RAM spike và độ trễ load.
+"Đầu tiên là Qdrant. Case em chọn cho Qdrant là selective payload guardrail. Nghĩa là trong RAG thực tế, trước khi tìm kiếm vector, hệ thống phải ép điều kiện metadata rất chặt, ví dụ như tenant, ACL, source, category hoặc page."
+
+### 01:15 - 01:40
+
+**Thao tác:** Đưa chuột vào block `Case setup`, đọc các filter trên UI.
+
+**Lời thoại:**
+
+"Ở đây query được gửi kèm filter `category = tech` và `page >= 99999`. Trong dataset demo, page này không tồn tại. Do đó kết quả đúng là không lấy ra evidence nào. Đây là case guardrail: database nào chứng minh được 'không có tài liệu hợp lệ' nhanh nhất thì database đó thắng."
+
+### 01:40 - 02:05
+
+**Thao tác:** Đưa chuột vào biểu đồ `Measured comparison`, hover lên thanh Qdrant.
+
+**Lời thoại:**
+
+"Metric của case này là latency, càng thấp càng tốt. Trên biểu đồ, Qdrant đạt khoảng 3.36 mili-giây, nhanh hơn Weaviate khoảng 4.74 mili-giây và Milvus khoảng 7.60 mili-giây. Tất cả đều trả về 0 result, nên đây là so sánh công bằng về tốc độ thực thi metadata guardrail."
+
+### 02:05 - 02:25
+
+**Thao tác:** Đưa chuột vào `Why this db wins` và `Scope of proof`.
+
+**Lời thoại:**
+
+"Kết luận của case này là: Qdrant không được claim là có recall tốt nhất trong mọi bài toán. Nhưng nếu ứng dụng RAG cần lọc theo quyền truy cập, tenant, source hoặc page trước khi truy hồi ngữ nghĩa, Qdrant là lựa chọn rất mạnh vì nó xử lý payload filter rất gọn và nhanh."
 
 ---
 
-## ⚖️ MA TRẬN ĐỐI CHIẾU CÁC TÍNH NĂNG NỔI BẬT NHẤT (OUTSTANDING FEATURES)
-Trước khi đi vào kịch bản, bảng dưới đây đúc kết các tính năng cốt lõi tạo nên sự khác biệt lớn nhất giữa ba công cụ, giúp người thuyết trình nắm chắc lập luận:
+## Phần 3 - Weaviate: thắng trong metadata-filtered hybrid query
 
-| Đặc tính | Qdrant | Weaviate | Milvus |
-| :--- | :--- | :--- | :--- |
-| **Ngôn ngữ phát triển** | **Rust** (An toàn bộ nhớ tuyệt đối, không có Garbage Collector, footprint cực nhỏ). | **Go** (Dễ viết và tối ưu, quản lý memory tốt, tính module hóa cao). | **Go & C++** (Lõi tính toán bằng C++ để tối ưu SIMD cực hạn, quản lý bằng Go). |
-| **Tính năng nổi bật nhất** | **Payload Metadata Filtering dynamic cực mạnh** tại storage engine level. | **Hybrid Search nguyên bản (Out-of-the-box)** kết hợp Dense HNSW + Sparse BM25. | **Kiến trúc Cloud-Native phân tán (Shared-Storage)** scale độc lập read/write. |
-| **Độ phức tạp vận hành** | **Rất thấp** (Chạy single binary hoặc cluster đơn giản, DX rất mượt). | **Trung bình** (Hỗ trợ GraphQL/REST/gRPC, cấu hình trực quan). | **Cao** (Cần `etcd` và `MinIO`/S3, nhiều microservices dịch vụ phối hợp). |
-| **Workload phù hợp nhất** | RAG nội bộ doanh nghiệp có **phân quyền phức tạp (ACL, Multi-tenant)**, nhiều bộ lọc thời gian/phòng ban. | RAG trên dữ liệu **dạng văn bản chứa nhiều thuật ngữ hẹp (mã lỗi, tên riêng, log, mã SP)** cần BM25 exact-match. | Hệ thống RAG **quy mô lớn (hàng triệu/tỷ vector)** cần tính sẵn sàng cao (HA), tải ghi và đọc tách biệt hoàn toàn. |
+**Thời gian:** 02:25 - 03:55  
+**Trang:** `/databases/weaviate`  
+**Mục tiêu:** Chứng minh Weaviate thắng khi query cần cả keyword và semantic vector.
 
----
+### 02:25 - 02:40
 
-## ⏱️ BẢNG TIMELINE QUAY VIDEO CHI TIẾT (FULL SCRIPT & ACTION)
+**Thao tác:** Click `Weaviate Demo` hoặc vào `/databases/weaviate`. Đưa chuột vào title `Edge case: metadata-filtered hybrid query`.
 
-*Phần này cung cấp toàn bộ hướng dẫn thao tác kết hợp với lời thoại nguyên văn từng chữ mà các thành viên sẽ đọc (lồng tiếng). Lời thoại đã được thiết kế lại để làm nổi bật các tính năng so sánh và làm rõ thiết lập hạ tầng của từng DB.*
+**Lời thoại:**
 
-### 📹 Phân đoạn 1: Dashboard Tổng quan & Thiết lập Vật lý của Hệ thống
-* **Thời gian trong video:** `00:00 - 01:30` (Tổng cộng 90 giây)
-* **Trang hiển thị:** `/` (`http://localhost:5173/` - khớp ảnh `dashboard.png`)
-* **Speaker:** Bạn (Người thuyết trình duy nhất)
+"Tiếp theo là Weaviate. Case của Weaviate là metadata-filtered hybrid query. Đây là tình huống tài liệu có nhiều từ khóa kỹ thuật, ví dụ category, vector database, payload filtering. Nếu chỉ dùng dense vector, những từ khóa chính xác này có thể bị làm mờ."
 
-**Kịch bản & Lời thoại chi tiết:**
+### 02:40 - 03:05
 
-*   **(00:00 - 00:05)**
-    *   **Thao tác (Action):** Mở trang Dashboard. Chuột di chuyển chậm rãi từ Logo hệ thống ở góc trên bên trái, kéo sang góc trên bên phải, **chỉ vào 3 DB online** (Qdrant: Online, Weaviate: Online, Milvus: Online) và dừng lại ở đó.
+**Thao tác:** Đưa chuột vào `Benchmark input`. Chỉ vào query, filter `category=tech`, `top_k=5`, `alpha=0.5`.
 
-    *   **Bạn (Script):** "Kính thưa thầy và hội đồng bảo vệ, để chứng minh các kết quả nghiên cứu lý thuyết về lưu trữ đa chiều trong bài báo cáo, em xin phép trình bày hệ thống RAG Benchmarking thực nghiệm của nhóm 4T."
+**Lời thoại:**
 
-*   **(00:05 - 00:25)**
-    *   **Thao tác (Action):** Di chuột tròn nhẹ quanh 3 DB status màu xanh lá. Từ từ di chuyển chuột xuống góc dưới bên phải, hover vào phần mô tả hạ tầng.
+"Input benchmark gửi cùng một request cho cả ba engine: query text, query vector, filter `category = tech`, lấy top_k bằng 5 và alpha bằng 0.5. Nói cách khác, đây không phải dense-only search, mà là hybrid search: vừa cần keyword exact-match, vừa cần semantic similarity."
 
-    *   **Bạn (Script):** "Đây là một hệ thống full-stack được chúng em phát triển từ đầu, tích hợp và chạy song song 3 Vector Database hàng đầu hiện nay là Qdrant, Weaviate, và Milvus Standalone. Toàn bộ hệ thống được triển khai bằng Docker Compose trên cùng một mạng cầu nội bộ. Tại đây, thầy có thể thấy cả 3 cơ sở dữ liệu đều đang ở trạng thái Online và sẵn sàng phục vụ các truy vấn kiểm thử."
+### 03:05 - 03:35
 
-*   **(00:25 - 00:45)**
-    *   **Thao tác (Action):** Đưa chuột vào chính giữa quả cầu vector 3D màu xanh neon. Nhấn giữ chuột trái và **kéo xoay mượt mà sang trái 90 độ, kéo lên trên 45 độ** (zoom-in nhẹ rồi zoom-out).
+**Thao tác:** Hover biểu đồ tại thanh Weaviate, sau đó lần lượt chỉ Qdrant và Milvus.
 
-    *   **Bạn (Script):** "Để trực quan hóa không gian đa chiều, hệ thống tích hợp một module render 3D thời gian thực sử dụng Three.js. Bằng cách giảm chiều dữ liệu từ không gian 768 chiều của mô hình Embedding xuống còn 3 chiều trực quan, các đoạn văn bản nhúng được hiển thị dưới dạng các tọa độ điểm. Thầy có thể thấy rõ các câu có ý nghĩa tương đồng ngữ nghĩa sẽ tự động co cụm lại với nhau rất rõ ràng."
+**Lời thoại:**
 
-*   **(00:45 - 01:10)**
-    *   **Thao tác (Action):** Di chuột xuống phần **"Current setup"** ở góc phải màn hình. Chỉ vào thông tin mô hình LLM (`qwen2.5:1.5b`) và model embedding (`nomic-embed-text`). Hover nhẹ vào thông số số chiều vector (`768`).
+"Trong edge case này, Weaviate thắng về latency: khoảng 43.92 mili-giây, nhanh hơn Qdrant 47.92 mili-giây và Milvus 264.52 mili-giây trong snapshot mặc định. Quan trọng hơn, nó thắng trong đúng workload mà Weaviate sinh ra để xử lý: schema object cộng với hybrid retrieval."
 
-    *   **Bạn (Script):** "Về mặt cấu hình lõi, hệ thống sử dụng mô hình LLM mã nguồn mở Qwen 2.5 1.5B chạy local qua Ollama cho khâu Generation, kết hợp mô hình Nomic-Embed-Text tạo vector embedding dense 768 chiều. Quan trọng nhất, để đảm bảo tính công bằng khoa học cho quá trình benchmark, chúng em thiết lập một **Giao thức Công bằng (Fairness Protocol)**: cả 3 database đều dùng chung một thông số cấu hình chỉ mục HNSW là M=16, ef_construction=128 và ef_search=64, với khoảng cách Cosine."
+### 03:35 - 03:55
 
-*   **(01:10 - 01:30)**
-    *   **Thao tác (Action):** Cuộn chuột xuống dưới cùng trang. Lần lượt di chuột qua 3 thẻ đặc tính kỹ thuật ở dưới: Qdrant (dừng 3s) ➡️ Weaviate (dừng 3s) ➡️ Milvus (dừng 3s), sau đó click vào nút **Architecture** ở menu bên trái.
+**Thao tác:** Đưa chuột vào `Why this db wins` và `Scope of proof`.
 
-    *   **Bạn (Script):** "Mục tiêu của nghiên cứu thực nghiệm này không phải là tìm một công cụ chiến thắng tuyệt đối, mà là làm rõ các đánh đổi kỹ thuật. Qdrant viết bằng Rust siêu gọn nhẹ với thế mạnh lọc payload metadata; Weaviate viết bằng Go tối ưu cho tìm kiếm kết hợp hybrid; và Milvus viết bằng Go/C++ sinh ra cho các kho dữ liệu quy mô phân tán cực lớn. Đầu tiên, em xin đi sâu vào Qdrant."
+**Lời thoại:**
+
+"Điểm mạnh của Weaviate nằm ở việc kết hợp dense vector search với keyword search kiểu BM25. Vì vậy, nếu corpus của mình là log, mã lỗi, catalog sản phẩm, tên module, tên riêng, thì Weaviate có lợi thế rất rõ. Nhưng case này không nói rằng Weaviate luôn nhanh nhất trong dense-only search."
 
 ---
 
-### 📹 Phân đoạn 2: Qdrant & Sức mạnh Payload Metadata Filtering từ Rust
-* **Thời gian trong video:** `01:30 - 03:00` (Tổng cộng 90 giây)
-* **Trang hiển thị:** `/architecture` ➡️ `/rag-chat` (khớp ảnh `architecture.png`, `rag-chat.png`)
-* **Speaker:** Bạn (Người thuyết trình duy nhất)
+## Phần 4 - Milvus: thắng trong high-recall top_k sweep
 
-**Kịch bản & Lời thoại chi tiết:**
+**Thời gian:** 03:55 - 05:20  
+**Trang:** `/databases/milvus`  
+**Mục tiêu:** Chứng minh Milvus thắng khi mục tiêu là recall cao và result set lớn.
 
-*   **(01:30 - 01:45)**
-    *   **Thao tác (Action):** Tại trang Architecture, di chuột dọc theo cột kiến trúc hình khối **Qdrant (Payload-First)** ở bên trái màn hình.
+### 03:55 - 04:10
 
-    *   **Bạn (Script):** "Về Qdrant, đây là cơ sở dữ liệu vector được viết hoàn toàn bằng ngôn ngữ Rust, mang lại sự an toàn bộ nhớ tuyệt đối mà không cần cơ chế dọn rác Garbage Collector. Trong file setup Docker, Qdrant chạy cực kỳ mượt mà chỉ với giới hạn tài nguyên tối thiểu 1 Gigabyte RAM. Điểm nổi bật nhất của Qdrant so với hai đối thủ còn lại chính là cơ chế lọc payload metadata động cực kỳ mạnh mẽ."
+**Thao tác:** Click `Milvus Demo` hoặc vào `/databases/milvus`. Đưa chuột vào title `Edge case: high-recall top_k sweep`.
 
-*   **(01:45 - 02:10)**
-    *   **Thao tác (Action):** Click chọn nút **RAG Chat** trên menu trái. Click chọn tab **Single Mode** và click chọn biểu tượng database **Qdrant**. Di chuột lướt nhẹ qua khu vực Upload Panel để hiển thị trạng thái sẵn sàng nạp PDF.
+**Lời thoại:**
 
-    *   **Bạn (Script):** "Trong các hệ thống RAG thực tế của doanh nghiệp, nhu cầu lọc tài liệu theo người dùng, phòng ban (ACL) hoặc mốc thời gian là bắt buộc. Qdrant cho phép đính kèm metadata (payload) trực tiếp vào point vector và thực hiện lọc ngay trong một bước quét đồ thị. Khác với Weaviate cần khai báo trước schema metadata phức tạp hay Milvus cần chuyển đổi biểu thức SQL-like qua điều phối viên, Qdrant áp dụng bộ lọc trực tiếp ở tầng lưu trữ lõi bằng Rust, giúp tối ưu hóa bộ nhớ và giảm thiểu tối đa độ trễ."
+"Cuối cùng là Milvus. Case của Milvus khác hai case trước: ở đây em không đo một query nhỏ để lấy latency thấp nhất, mà đo khả năng bao phủ recall khi lấy nhiều evidence hơn, cụ thể là top_k bằng 50."
 
-*   **(02:10 - 02:40)**
-    *   **Thao tác (Action):** Click vào thanh nhập liệu (Input Chat), thực hiện gõ câu hỏi: *"Cơ chế bảo mật multi-tenant hoạt động như thế nào?"*. Nhấn **Enter** hoặc bấm nút **Gửi**.
+### 04:10 - 04:35
 
-    *   **Bạn (Script):** "Em thực hiện đặt một câu hỏi giả lập về multi-tenant: *'Cơ chế bảo mật multi-tenant hoạt động như thế nào?'*. Ở phía backend, client Qdrant được kết nối qua giao thức gRPC tốc độ cao ở cổng 6334. Hệ thống đã nhanh chóng tạo vector truy vấn, Qdrant tìm kiếm các chunk văn bản tương ứng và đưa cho LLM Qwen để tổng hợp câu trả lời."
+**Thao tác:** Đưa chuột vào `Case setup` và `Benchmark input`.
 
-*   **(02:40 - 03:00)**
-    *   **Thao tác (Action):** Khi câu trả lời xuất hiện, di chuột chỉ vào vùng **thẻ thông số (Qdrant, latency...)** ở dưới cùng góc trái của khung chat.
+**Lời thoại:**
 
-    *   **Bạn (Script):** "*(Chỉ vào thẻ thông số)* Thầy có thể thấy độ trễ pha Retrieval của Qdrant chỉ mất vỏn vẹn vài mili-giây. Nhờ thế mạnh của Rust và thiết kế payload-first, Qdrant là lựa chọn hoàn hảo nhất cho các ứng dụng RAG nội bộ doanh nghiệp yêu cầu phân quyền bảo mật chặt chẽ, cập nhật dữ liệu liên tục mà vẫn muốn giữ footprint hạ tầng ở mức tối giản nhất."
+"Trong RAG, có những trường hợp cần recall cao hơn, ví dụ tổng hợp tài liệu dài, hỏi đáp phức tạp, hoặc cần lấy nhiều evidence để LLM có đầy đủ ngữ cảnh. Khi đó câu hỏi không còn là 'ai nhanh nhất với top_k nhỏ', mà là 'ai lấy được nhiều chunk đúng nhất khi tăng top_k'."
 
----
+### 04:35 - 05:05
 
-### 📹 Phân đoạn 3: Weaviate & Giải thuật Tìm kiếm Kết hợp Hybrid Search
-* **Thời gian trong video:** `03:00 - 04:30` (Tổng cộng 90 giây)
-* **Trang hiển thị:** `/hybrid` (khớp ảnh `hybrid-search.png`)
-* **Speaker:** Bạn (Người thuyết trình duy nhất)
+**Thao tác:** Hover biểu đồ tại thanh Milvus. Sau đó chỉ vào bảng số liệu Recall và Latency support.
 
-**Kịch bản & Lời thoại chi tiết:**
+**Lời thoại:**
 
-*   **(03:00 - 03:20)**
-    *   **Thao tác (Action):** Click chuột trái vào nút **Hybrid Search** trên menu điều hướng trái. Di chuột quanh dòng tiêu đề trang *"Hybrid search latency ranking"*.
+"Tại top_k bằng 50, Milvus đạt Recall 80.0 phần trăm, trong khi Qdrant chỉ đạt 27.0 phần trăm và Weaviate đạt 24.5 phần trăm. Độ trễ hỗ trợ của Milvus vẫn chỉ khoảng 4.17 mili-giây trong snapshot tradeoff. Vì vậy, Milvus thắng rất rõ khi mục tiêu là high-recall retrieval."
 
-    *   **Bạn (Script):** "Tiếp theo, em xin phép chuyển sang Weaviate - đại diện viết bằng ngôn ngữ Go. Weaviate được cấu hình chạy độc lập ở cổng HTTP 8080 và gRPC 50051. Vũ khí mạnh nhất của Weaviate so với Qdrant và Milvus chính là khả năng Tìm kiếm kết hợp (Hybrid Search) tích hợp sẵn cực kỳ mạnh mẽ mà không cần cấu hình bên ngoài phức tạp."
+### 05:05 - 05:20
 
-*   **(03:20 - 03:45)**
-    *   **Thao tác (Action):** Click vào ô tìm kiếm ở giữa trang. Nhập câu truy vấn: *"lỗi phân quyền Tenant A trong module thanh toán"*. Bấm nút **Run retrieval**.
+**Thao tác:** Đưa chuột vào `Scope of proof`.
 
-    *   **Bạn (Script):** "Em đặt một câu truy vấn mang tính thử thách cao: *'lỗi phân quyền Tenant A trong module thanh toán'*. Câu hỏi này chứa các thuật ngữ đặc thù như 'Tenant A' hay 'module thanh toán'. Với tìm kiếm vector dense thông thường, hệ thống có thể hiểu sai ý chung hoặc làm mờ đi các từ khóa quan trọng này. Đây chính là nơi Weaviate thể hiện sức mạnh vượt trội."
+**Lời thoại:**
 
-*   **(03:45 - 04:10)**
-    *   **Thao tác (Action):** Khi biểu đồ Recharts hiện lên, đưa chuột vào cột màu **Xanh Dương (Weaviate)** và **để yên chuột khoảng 3 giây** để hiển thị Tooltip báo độ trễ.
-
-    *   **Bạn (Script):** "Trên biểu đồ thời gian thực, Weaviate (cột màu xanh dương) tốn khoảng 14.5 ms để hoàn thành, chậm hơn khoảng 3 lần so với Qdrant. Tuy nhiên, đây là một sự đánh đổi hoàn toàn xứng đáng. Bản chất thuật toán của Weaviate ở đây là chạy song song hai luồng: tìm kiếm vector dense trên đồ thị HNSW và tìm kiếm từ khóa thưa (sparse) bằng chỉ mục đảo ngược theo thuật toán BM25. Sau đó, Weaviate sử dụng giải thuật Reciprocal Rank Fusion (RRF) với tham số alpha = 0.5 để dung hợp và xếp hạng lại kết quả."
-
-*   **(04:10 - 04:30)**
-    *   **Thao tác (Action):** Di chuột sang cột màu **Đỏ (Qdrant)** và cột **Xanh Lá (Milvus)** để đối chiếu độ trễ thấp hơn của chúng, sau đó chỉ vào danh sách kết quả bên phải.
-
-    *   **Bạn (Script):** "Trong khi Qdrant và Milvus chỉ chạy tìm kiếm vector thuần nên có độ trễ cực thấp dưới 5ms, thì Weaviate chấp nhận đánh đổi một chút hiệu năng để đảm bảo chất lượng tìm kiếm đạt mức tối đa đối với các dữ liệu dạng log kỹ thuật, mã lỗi hoặc catalog sản phẩm - nơi mà từ khóa chính xác quan trọng ngang ngửa ngữ nghĩa chung."
+"Kết luận ở đây là Milvus phù hợp khi collection đã được load vào RAM và hệ thống cần lấy nhiều ứng viên liên quan. Nhưng nó không phải lựa chọn tốt nhất cho mọi metadata guardrail nhỏ hoặc query một lần cực nhẹ."
 
 ---
 
-### 📹 Phân đoạn 4: Milvus & Kiến trúc Phân tán Doanh nghiệp (Cloud-Native)
-* **Thời gian trong video:** `04:30 - 06:00` (Tổng cộng 90 giây)
-* **Trang hiển thị:** `/architecture` ➡️ `/latency` (khớp ảnh `architecture.png`, `latency.png`)
-* **Speaker:** Bạn (Người thuyết trình duy nhất)
+## Phần 5 - Benchmark Workflow: nhìn tổng thể Recall, Latency, Trade-off
 
-**Kịch bản & Lời thoại chi tiết:**
+**Thời gian:** 05:20 - 07:00  
+**Trang:** `/benchmark-workflow`  
+**Mục tiêu:** Giải thích các metric benchmark và cách đọc kết quả chung.
 
-*   **(04:30 - 04:50)**
-    *   **Thao tác (Action):** Click chọn nút **Architecture** ở menu trái. Rê chuột từ trên xuống dọc theo cột kiến trúc phức tạp của **Milvus** (Proxy -> Coordinator -> QueryNode -> MinIO Storage).
+### 05:20 - 05:40
 
-    *   **Bạn (Script):** "Cuối cùng trong bộ ba, em xin giới thiệu Milvus. Nếu Qdrant và Weaviate hướng đến sự tinh gọn, dễ tích hợp thì Milvus lại là một gã khổng lồ được thiết kế theo tư duy Cloud-Native phân tán. Để thiết lập bản Milvus Standalone chạy local, Docker Compose phải khai báo thêm hai service phụ bắt buộc là `etcd` để điều phối metadata và `MinIO` làm tầng lưu trữ đối tượng dạng phân đoạn (segments)."
+**Thao tác:** Click `Benchmark Results` hoặc vào `/benchmark-workflow`. Đưa chuột vào `Run config` nhưng không nhất thiết bấm chạy nếu đã có snapshot.
 
-*   **(04:50 - 05:25)**
-    *   **Thao tác (Action):** Click chọn nút **Latency** trên menu điều hướng trái. Di chuột lên bộ lọc DB ở góc trên bên phải, bấm chọn **Milvus**, sau đó bấm chọn lại **All**.
+**Lời thoại:**
 
-    *   **Bạn (Script):** "Thiết lập của Milvus đòi hỏi cấu hình tài nguyên tối thiểu 2 Gigabyte RAM. Kiến trúc lõi của Milvus phân tách hoàn toàn tầng tính toán và tầng lưu trữ (Shared-Storage). Luồng ghi dữ liệu đi qua Proxy, Coordinator vào các phân đoạn dữ liệu được lưu trên MinIO, trong khi các QueryNode chịu trách nhiệm đọc dữ liệu. Sự phân tách này cho phép Milvus mở rộng quy mô (scale-out) không giới hạn: ta có thể thêm hàng chục node đọc mà không ảnh hưởng đến hiệu năng ghi, đáp ứng quy mô hàng tỷ vector trong môi trường enterprise lớn."
+"Sau ba case riêng, mình quay lại benchmark tổng thể. Page này dùng để đo toàn bộ hệ thống trên cùng cấu hình demo: corpus size 1000 và 20 golden queries. Hai phần chính là accuracy benchmark và tradeoff sweep."
 
-*   **(05:25 - 06:00)**
-    *   **Thao tác (Action):** Di chuột vòng quanh vòng tròn đo tốc độ **p50 median** (`4.1 ms`) và **p95 tail** (`6.2 ms`). Cuộn chuột xuống dưới cùng, chỉ vào biểu đồ **Search Latency** và **Insert Latency**.
+### 05:40 - 06:10
 
-    *   **Bạn (Script):** "Dù cấu hình Docker phức tạp và dữ liệu phải đi qua nhiều thành phần RPC, Milvus vẫn đạt độ trễ trung vị p50 cực kỳ ấn tượng là 4.1 ms trong snapshot kiểm thử này. Kết quả này có được nhờ lõi tính toán Knowhere viết bằng C++ tối ưu hóa phần cứng và cơ chế load collection trực tiếp vào RAM. Điểm đánh đổi duy nhất của Milvus chính là độ phức tạp trong vận hành và tài nguyên duy trì lớn hơn nhiều so với Qdrant và Weaviate."
+**Thao tác:** Đưa chuột vào `Accuracy results`, hover các cột Recall@1, Recall@5, Recall@10; sau đó chỉ vào bảng.
 
----
+**Lời thoại:**
 
-### 📹 Phân đoạn 5: Đo lường Hiệu năng Thực nghiệm trên Tập Benchmark Chung
-* **Thời gian trong video:** `06:00 - 07:30` (Tổng cộng 90 giây)
-* **Trang hiển thị:** `/accuracy` ➡️ `/tradeoff` (khớp ảnh `accuracy.png`, `tradeoff.png`)
-* **Speaker:** Bạn (Người thuyết trình duy nhất)
+"Accuracy benchmark đo Recall@K và MRR. Recall@K trả lời câu hỏi: trong K kết quả đầu tiên, database có lấy được chunk đúng hay không. MRR đo vị trí trung bình của đáp án đúng, đáp án đúng xuất hiện càng sớm thì MRR càng cao. Trong snapshot này, Milvus đang có Recall@10 cao nhất, nên nếu mục tiêu là tìm được nhiều evidence đúng, Milvus đang có lợi thế."
 
-**Kịch bản & Lời thoại chi tiết:**
+### 06:10 - 06:40
 
-*   **(06:00 - 06:30)**
-    *   **Thao tác (Action):** Click chọn trang **Accuracy**. Chỉ chuột vào cột Milvus trên biểu đồ **Recall@K Leaderboard**. Cuộn xuống bảng số liệu, rê chuột dọc theo hàng **Milvus** (Recall@10: **44.0%**, MRR: **24.9%**).
+**Thao tác:** Đưa chuột sang `Trade-off results`, hover đường/điểm của từng DB.
 
-    *   **Bạn (Script):** "Bây giờ, em xin trình bày phần quan trọng nhất: kết quả đánh giá trên cùng một tập benchmark chung để đối chiếu trực tiếp hiệu năng khoa học. Tập dữ liệu thử nghiệm bao gồm **10,000 chunk văn bản tổng hợp** và bộ **200 truy vấn mẫu** có gán nhãn ground-truth. Trên biểu đồ độ chính xác Recall@10, Milvus đang tạm dẫn đầu với tỉ lệ tìm hồi đạt 44.0%, đồng thời chỉ số MRR đạt 24.9%, nghĩa là tài liệu chính xác nhất có xu hướng xuất hiện ở vị trí hàng đầu."
+**Lời thoại:**
 
-*   **(06:30 - 07:10)**
-    *   **Thao tác (Action):** Click chuột vào nút **Tradeoff** trên menu trái. Đưa chuột vào biểu đồ **Interactive Pareto Frontier**. Di chuột dọc theo đường cong màu xanh lá của Milvus từ `top_k=1` dần sang phải lên đến `top_k=50`.
+"Tradeoff chart cho thấy khi tăng top_k thì recall tăng như thế nào và latency thay đổi ra sao. Đây là biểu đồ quan trọng nhất để tránh kết luận một chiều. Một DB có thể rất nhanh ở top_k nhỏ, nhưng khi cần recall cao hơn thì DB khác lại tốt hơn."
 
-    *   **Bạn (Script):** "Tuy nhiên, trong kỹ thuật hệ thống, chúng ta luôn phải đối mặt với bài toán đánh đổi Trade-off giữa thời gian phản hồi (Latency) và độ chính xác (Recall). Tại biểu đồ Pareto Frontier này, trục hoành thể hiện Latency (càng nhỏ càng tốt), trục tung là Recall (càng cao càng tốt). Đường cong Pareto của Milvus trong snapshot này chứng minh hiệu quả tối ưu hóa vượt trội của lõi C++: khi chúng ta tăng `top_k` từ 1 lên 50 để tăng Recall, độ trễ truy vấn của Milvus chỉ nhích nhẹ từ 4.1 ms lên 4.17 ms, giữ vững đường biên hiệu quả."
+### 06:40 - 07:00
 
-*   **(07:10 - 07:30)**
-    *   **Thao tác (Action):** Di chuột xuống phần kết luận khoa học **"Seminar conclusion"** ở góc dưới cùng, rê chuột chậm rãi theo dòng chữ.
+**Thao tác:** Đưa chuột vào `Best For Scorecard`.
 
-    *   **Bạn (Script):** "Kết quả benchmark này được thực hiện trong điều kiện cực kỳ nghiêm ngặt của Giao thức Công bằng (Fairness Protocol) khi cả 3 database đều sử dụng chung một cấu hình chỉ mục HNSW. Sự chênh lệch nhỏ về độ chính xác và độ trễ chứng minh rằng các bộ thư viện tính toán của từng DB đã được tối ưu hóa rất tốt cho phần cứng hiện đại."
+**Lời thoại:**
+
+"Scorecard cuối trang tóm tắt quyết định thực tế: Qdrant cho metadata-filtered queries, Weaviate cho keyword-heavy technical docs, Milvus cho high recall và scale. Đây là cách đọc kết quả benchmark đúng hơn việc nói một database thắng tất cả."
 
 ---
 
-### 📹 Phân đoạn 6: Live RAG Chat So sánh & Điểm DX Score
-* **Thời gian trong video:** `07:30 - 09:00` (Tổng cộng 90 giây)
-* **Trang hiển thị:** `/rag-chat` ➡️ `/dx-score` (khớp ảnh `rag-chat.png`, `dx-score.png`)
-* **Speaker:** Bạn (Người thuyết trình duy nhất)
+## Phần 6 - RAG Chat Compare: kiểm chứng đầu ra ngữ cảnh
 
-**Kịch bản & Lời thoại chi tiết:**
+**Thời gian:** 07:00 - 08:10  
+**Trang:** `/rag-chat`  
+**Mục tiêu:** Cho thấy ba DB tạo context khác nhau cho LLM, nhưng không đi quá sâu vào kiến trúc.
 
-*   **(07:30 - 08:15)**
-    *   **Thao tác (Action):** Click chọn lại trang **RAG Chat** ở menu trái. Tại sidebar trái, click chọn chế độ **Compare Mode**. Nhập câu hỏi: *"Vector database nào tốt nhất cho RAG?"* rồi bấm **Gửi**.
+### 07:00 - 07:25
 
-    *   **Bạn (Script):** "Để kiểm chứng chất lượng RAG một cách trực quan, em kích hoạt chế độ **Compare Mode** của hệ thống. Truy vấn *'Vector database nào tốt nhất cho RAG?'* sẽ được backend gửi song song tới cả 3 database. Hệ thống sẽ bóc tách chi tiết hai pha: pha Retrieval (truy hồi ngữ cảnh từ vector DB) và pha Generation (LLM sinh câu trả lời dựa trên ngữ cảnh đó)."
+**Thao tác:** Mở `/rag-chat`. Bật compare mode nếu chưa bật. Nhập query ngắn: `Vector database nào phù hợp cho RAG có metadata filter và recall cao?`
 
-*   **(08:15 - 08:45)**
-    *   **Thao tác (Action):** Rê chuột từ trái sang phải qua 3 cột câu trả lời tương ứng Qdrant ➡️ Weaviate ➡️ Milvus. Chỉ chuột vào thanh đo thời gian màu xanh neon ở dưới mỗi câu trả lời.
+**Lời thoại:**
 
-    *   **Bạn (Script):** "Thầy có thể thấy, dù cùng một prompt và cùng một LLM Qwen, nội dung trả lời của ba cột có sự khác biệt rõ rệt. Điều này phản ánh sự khác nhau trong giải thuật định tuyến của từng database, tạo ra các ngữ cảnh đầu vào (context) khác nhau cho LLM. Pha đo lường thời gian thực này cũng thể hiện rõ độ trễ sinh từ của LLM là tương đương nhau, nhưng tốc độ tìm kiếm ngữ cảnh của Qdrant và Milvus đang nhanh hơn rõ rệt."
+"Cuối cùng, em dùng RAG Chat Compare để cho thấy benchmark gần với trải nghiệm RAG thật. Một query được gửi song song qua ba database, mỗi database trả về evidence khác nhau, sau đó LLM dùng evidence đó để sinh câu trả lời."
 
-*   **(08:45 - 09:00)**
-    *   **Thao tác (Action):** Click chọn nút **DX Score** trên menu trái. Chỉ chuột vào 3 thẻ điểm **Composite DX**, sau đó chỉ xuống bảng chi tiết chỉ số tĩnh.
+### 07:25 - 07:55
 
-    *   **Bạn (Script):** "Bên cạnh các thông số vật lý, nhóm cũng đánh giá chỉ số Trải nghiệm lập trình viên (DX Score). Bằng việc đo lường độ phức tạp cyclomatic và số dòng code cần thiết để khởi tạo kết nối và thực hiện truy vấn ở tầng backend Python, Milvus nhận điểm DX thấp hơn do đòi hỏi nhiều dòng lệnh khởi tạo, định cấu hình schema và tải partition. Ngược lại, Qdrant và Weaviate với SDK tinh gọn đạt điểm DX rất cao, cực kỳ thân thiện cho phát triển ứng dụng nhanh."
+**Thao tác:** Sau khi kết quả hiển thị, di chuột qua ba cột Qdrant, Weaviate, Milvus; chỉ vào latency và evidence.
+
+**Lời thoại:**
+
+"Nếu evidence của Qdrant tốt hơn trong câu hỏi có filter, đó là vì Qdrant mạnh ở payload metadata. Nếu Weaviate lấy được các từ khóa kỹ thuật rõ hơn, đó là lợi thế hybrid. Nếu Milvus lấy được nhiều ứng viên liên quan hơn khi top_k lớn, đó là lợi thế high-recall. Nghĩa là chat output chỉ là lớp hiển thị cuối cùng; gốc rễ vẫn là retrieval behavior của từng database."
+
+### 07:55 - 08:10
+
+**Thao tác:** Kết thúc ở summary fastest/latency nếu có.
+
+**Lời thoại:**
+
+"Vì vậy, phần chat này không thay thế benchmark, mà giúp mình nhìn thấy benchmark ảnh hưởng trực tiếp đến câu trả lời RAG như thế nào."
 
 ---
 
-### 📹 Phân đoạn 7: Đúc kết Ma trận Quyết định & Kết thúc
-* **Thời gian trong video:** `09:00 - 10:00` (Tổng cộng 60 giây)
-* **Trang hiển thị:** `/architecture` ➡️ `/` (Dashboard)
-* **Speaker:** Bạn (Người thuyết trình duy nhất)
+## Phần 7 - Kết luận: không có DB tốt nhất, chỉ có DB phù hợp case
 
-**Kịch bản & Lời thoại chi tiết:**
+**Thời gian:** 08:10 - 09:00  
+**Trang:** quay về `/dashboard`  
+**Mục tiêu:** Đóng lại bằng ma trận quyết định rõ ràng.
 
-*   **(09:00 - 09:40)**
-    *   **Thao tác (Action):** Click chọn **Architecture** trên menu điều hướng trái. Cuộn xuống dưới cùng trang đến phần **"Decision Matrix"**. Di chuột rê dọc theo 3 cột quyết định.
+### 08:10 - 08:40
 
-    *   **Bạn (Script):** "Để đúc kết lại nghiên cứu thực nghiệm, dựa trên ma trận quyết định được xây dựng tự động từ kết quả benchmark: Nếu hệ thống RAG yêu cầu tính bảo mật cao, phân quyền truy cập động theo tenant, phòng ban và tài nguyên hạ tầng hạn chế: Qdrant viết bằng Rust là sự lựa chọn tối ưu nhất. Nếu tài liệu cần RAG chứa nhiều từ khóa đặc thù, thuật ngữ kỹ thuật hẹp và mã hiệu cần độ chính xác cao: Weaviate với công nghệ Hybrid Search BM25 nguyên bản là giải pháp vượt trội. Còn nếu thầy đang xây dựng một hệ thống RAG cấp tập đoàn với quy mô hàng triệu người dùng, hàng tỷ vector và yêu cầu tính sẵn sàng cao (HA): kiến trúc phân tán tách biệt đọc/ghi của Milvus chính là câu trả lời."
+**Thao tác:** Quay về `/dashboard`, đưa chuột qua ba DB demo cards hoặc Best For Scorecard.
 
-*   **(09:40 - 10:00)**
-    *   **Thao tác (Action):** Chuyển nhanh về trang `/` (Dashboard) ở 10 giây cuối cùng. Thực hiện **xoay nhẹ quả cầu vector 3D** một lần nữa thật mượt mà. Kết thúc video (Stop Recording).
+**Lời thoại:**
 
-    *   **Bạn (Script):** "Bài thuyết trình và demo thực nghiệm so sánh bộ ba Vector Database của nhóm 4T đến đây xin được kết thúc. Em xin chân thành cảm ơn sự theo dõi của các thầy trong Hội đồng và rất mong nhận được những ý kiến đóng góp, câu hỏi phản biện từ các thầy ạ!"
+"Từ demo này, kết luận của nhóm là không nên chọn vector database theo cảm tính. Nếu bài toán là metadata guardrail, phân quyền tenant, ACL, source hoặc page, Qdrant là lựa chọn mạnh. Nếu bài toán là technical documents, log, mã lỗi, keyword và semantic cần đi cùng nhau, Weaviate là lựa chọn hợp lý. Nếu bài toán cần recall cao, top_k lớn, và workload đã load sẵn vào memory, Milvus cho kết quả vượt trội."
+
+### 08:40 - 09:00
+
+**Thao tác:** Dừng màn hình ở Dashboard overview 3 dòng. Không cần xoay nhiều.
+
+**Lời thoại:**
+
+"Toàn bộ web demo này được xây dựng để chứng minh điều đó bằng số liệu: mỗi DB đều có một vùng chiến thắng riêng. Phần benchmark chung giúp chúng ta thấy tradeoff, còn các DB demo page chỉ ra edge case cụ thể mà từng database vượt trội hơn hai database còn lại. Phần trình bày của em đến đây là kết thúc, em xin cảm ơn thầy và các bạn đã theo dõi."
+
+---
+
+# Checklist khi quay
+
+- Dashboard: chỉ vào status online, local setup, overview 3 dòng.
+- Qdrant page: nói rõ `category=tech`, `page >= 99999`, result count = 0, latency thấp nhất.
+- Weaviate page: nói rõ hybrid query, text + vector + filter, thắng trong technical keyword case.
+- Milvus page: nói rõ top_k=50, Recall 80.0%, thắng trong high-recall case.
+- Benchmark Workflow: giải thích Recall@K, MRR, latency, tradeoff.
+- RAG Chat: chỉ nói ngắn, dùng để nói retrieval behavior ảnh hưởng câu trả lời.
+- Kết luận: lặp lại "không có DB tốt nhất tuyệt đối, chỉ có DB phù hợp đúng workload".
