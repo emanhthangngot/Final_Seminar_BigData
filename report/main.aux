@@ -1,0 +1,119 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{lewis2020rag}
+\citation{malkov2020hnsw}
+\citation{annbenchmarks}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Giới thiệu}{1}{section.1}\protected@file@percent }
+\newlabel{sec:introduction}{{1}{1}{Giới thiệu}{section.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.1}Vector Database và vai trò trong Big Data}{1}{subsection.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.2}Vai trò trong RAG, Semantic Search và AI Systems}{1}{subsection.1.2}\protected@file@percent }
+\citation{qdrantdocs}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Pipeline RAG: pha indexing (trên) và pha answering (dưới).}}{2}{figure.caption.2}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:rag-pipeline}{{1}{2}{Pipeline RAG: pha indexing (trên) và pha answering (dưới)}{figure.caption.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.3}Mục tiêu báo cáo}{2}{subsection.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Tổng quan ba hệ quản trị Vector Database}{2}{section.2}\protected@file@percent }
+\newlabel{sec:overview}{{2}{2}{Tổng quan ba hệ quản trị Vector Database}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Qdrant}{2}{subsection.2.1}\protected@file@percent }
+\citation{weaviatedocs}
+\citation{weaviatemodules}
+\citation{wang2021milvus}
+\citation{milvusdocs}
+\citation{dbengines}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Weaviate}{3}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Milvus}{3}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Mức độ phổ biến trong cộng đồng}{3}{subsection.2.4}\protected@file@percent }
+\citation{qdrantpricing}
+\citation{weaviatepricing}
+\citation{zillizfree}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Tổng quan thiết kế và phân khúc sử dụng của ba Vector Database.}}{4}{table.caption.3}\protected@file@percent }
+\newlabel{tab:overview}{{1}{4}{Tổng quan thiết kế và phân khúc sử dụng của ba Vector Database}{table.caption.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Mã nguồn mở và chính sách giá}{4}{section.3}\protected@file@percent }
+\newlabel{sec:opensource}{{3}{4}{Mã nguồn mở và chính sách giá}{section.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces So sánh license, self-host và chính sách cloud/free tier.}}{4}{table.caption.4}\protected@file@percent }
+\newlabel{tab:opensource-pricing}{{2}{4}{So sánh license, self-host và chính sách cloud/free tier}{table.caption.4}{}}
+\citation{qdrantdocs}
+\citation{qdrantstorage}
+\citation{qdrantfilter}
+\citation{jegou2011pq}
+\citation{weaviatedocs}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Phân tích kiến trúc}{5}{section.4}\protected@file@percent }
+\newlabel{sec:architecture}{{4}{5}{Phân tích kiến trúc}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Qdrant: gọn nhẹ cho filtered retrieval}{5}{subsection.4.1}\protected@file@percent }
+\newlabel{sec:qdrant}{{4.1}{5}{Qdrant: gọn nhẹ cho filtered retrieval}{subsection.4.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Kiến trúc Qdrant xoay quanh segment và payload-aware query path.}}{5}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:qdrant-arch}{{2}{5}{Kiến trúc Qdrant xoay quanh segment và payload-aware query path}{figure.caption.5}{}}
+\citation{robertson2009bm25}
+\citation{weaviatehybrid}
+\citation{cormack2009rrf}
+\citation{weaviatemodules}
+\citation{wang2021milvus}
+\citation{milvusarch}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Weaviate: hybrid retrieval trong cùng query engine}{6}{subsection.4.2}\protected@file@percent }
+\newlabel{sec:weaviate}{{4.2}{6}{Weaviate: hybrid retrieval trong cùng query engine}{subsection.4.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Weaviate kết hợp object store, HNSW và BM25 trong cùng shard.}}{6}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:weaviate-arch}{{3}{6}{Weaviate kết hợp object store, HNSW và BM25 trong cùng shard}{figure.caption.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Milvus: phân tán để phục vụ scale lớn}{6}{subsection.4.3}\protected@file@percent }
+\newlabel{sec:milvus}{{4.3}{6}{Milvus: phân tán để phục vụ scale lớn}{subsection.4.3}{}}
+\citation{milvusknowheredocs}
+\citation{milvusdiskann}
+\citation{subramanya2019diskann}
+\citation{milvusdocs}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Milvus tách compute khỏi storage để scale theo từng vai trò.}}{7}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:milvus-arch}{{4}{7}{Milvus tách compute khỏi storage để scale theo từng vai trò}{figure.caption.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}So sánh kiến trúc}{7}{subsection.4.4}\protected@file@percent }
+\newlabel{sec:arch-comparison}{{4.4}{7}{So sánh kiến trúc}{subsection.4.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces So sánh kiến trúc và trade-off chính.}}{7}{table.caption.8}\protected@file@percent }
+\newlabel{tab:arch-compare}{{3}{7}{So sánh kiến trúc và trade-off chính}{table.caption.8}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Đánh giá so sánh}{8}{section.5}\protected@file@percent }
+\newlabel{sec:evaluation}{{5}{8}{Đánh giá so sánh}{section.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Thiết lập và phương pháp}{8}{subsection.5.1}\protected@file@percent }
+\newlabel{sec:experimental-setup}{{5.1}{8}{Thiết lập và phương pháp}{subsection.5.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Cấu hình thực nghiệm và fairness protocol.}}{8}{table.caption.9}\protected@file@percent }
+\newlabel{tab:experimental-setup}{{4}{8}{Cấu hình thực nghiệm và fairness protocol}{table.caption.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Kết quả snapshot}{8}{subsection.5.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Recall@K, MRR và latency trung bình (corpus = 10K, queries = 200).}}{8}{table.caption.10}\protected@file@percent }
+\newlabel{tab:accuracy}{{5}{8}{Recall@K, MRR và latency trung bình (corpus = 10K, queries = 200)}{table.caption.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Recall-latency tradeoff và filter}{9}{subsection.5.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Tradeoff sweep: Recall (\%) / Avg latency (ms) theo top\_k.}}{9}{table.caption.11}\protected@file@percent }
+\newlabel{tab:tradeoff}{{6}{9}{Tradeoff sweep: Recall (\%) / Avg latency (ms) theo top\_k}{table.caption.11}{}}
+\citation{weaviatehybrid}
+\citation{milvusarch}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Tài nguyên và Developer Experience}{10}{subsection.5.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Tài nguyên và DX trong codebase benchmark của nhóm.}}{10}{table.caption.12}\protected@file@percent }
+\newlabel{tab:dx-resource}{{7}{10}{Tài nguyên và DX trong codebase benchmark của nhóm}{table.caption.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}Hạn chế}{10}{subsection.5.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Thảo luận}{10}{section.6}\protected@file@percent }
+\newlabel{sec:discussion}{{6}{10}{Thảo luận}{section.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Ma trận quyết định theo use case.}}{11}{table.caption.13}\protected@file@percent }
+\newlabel{tab:decision-matrix}{{8}{11}{Ma trận quyết định theo use case}{table.caption.13}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Kết luận}{12}{section.7}\protected@file@percent }
+\newlabel{sec:conclusion}{{7}{12}{Kết luận}{section.7}{}}
+\bibstyle{plain}
+\bibdata{ref/ref}
+\bibcite{annbenchmarks}{1}
+\bibcite{cormack2009rrf}{2}
+\bibcite{dbengines}{3}
+\bibcite{jegou2011pq}{4}
+\bibcite{lewis2020rag}{5}
+\bibcite{malkov2020hnsw}{6}
+\bibcite{milvusdiskann}{7}
+\bibcite{milvusknowheredocs}{8}
+\bibcite{milvusarch}{9}
+\bibcite{milvusdocs}{10}
+\bibcite{qdrantfilter}{11}
+\@writefile{toc}{\contentsline {section}{Tài liệu tham khảo}{14}{section*.14}\protected@file@percent }
+\bibcite{qdrantdocs}{12}
+\bibcite{qdrantstorage}{13}
+\bibcite{qdrantpricing}{14}
+\bibcite{robertson2009bm25}{15}
+\bibcite{subramanya2019diskann}{16}
+\bibcite{wang2021milvus}{17}
+\bibcite{weaviatedocs}{18}
+\bibcite{weaviatehybrid}{19}
+\bibcite{weaviatemodules}{20}
+\bibcite{weaviatepricing}{21}
+\bibcite{zillizfree}{22}
+\gdef \@abspage@last{18}

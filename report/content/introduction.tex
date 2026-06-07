@@ -1,0 +1,41 @@
+\section{Giới thiệu}
+\label{sec:introduction}
+
+Trong những năm gần đây, các mô hình ngôn ngữ lớn (Large Language Model -- LLM) như GPT, Gemini hay Qwen đã chứng minh khả năng sinh ngôn ngữ tự nhiên vượt trội. Tuy nhiên, LLM vẫn tồn tại ba giới hạn nghiêm trọng: (i)~kiến thức bị đóng băng tại thời điểm huấn luyện (\textit{knowledge cutoff}), (ii)~có thể sinh ra thông tin không chính xác một cách tự tin (\textit{hallucination}), và (iii)~không thể truy cập dữ liệu nội bộ của tổ chức~\cite{lewis2020rag}. Retrieval-Augmented Generation (RAG) là kiến trúc được đề xuất nhằm khắc phục cả ba giới hạn trên bằng cách bổ sung bước truy hồi ngữ cảnh (\textit{retrieval}) trước khi mô hình sinh câu trả lời.
+
+\subsection{Vector Database và vai trò trong Big Data}
+
+Trong pipeline RAG, tài liệu được chia thành các đoạn nhỏ (\textit{chunk}), mỗi đoạn được chuyển đổi thành vector embedding --- một mảng số thực nhiều chiều (thường 768--1536 chiều) biểu diễn ngữ nghĩa của đoạn văn bản. Các vector này được lưu trữ trong \textbf{Vector Database} --- một hệ quản trị cơ sở dữ liệu chuyên biệt cho việc lưu trữ và tìm kiếm vector nhiều chiều dựa trên độ tương đồng ngữ nghĩa.
+
+Khác với cơ sở dữ liệu truyền thống (SQL, NoSQL) vốn tối ưu cho truy vấn chính xác (\texttt{WHERE}, \texttt{LIKE}), Vector Database giải quyết bài toán \textit{tìm kiếm theo ngữ nghĩa}: thay vì so khớp từ khóa, hệ thống tìm các chunk có ý nghĩa gần nhất với câu hỏi của người dùng. Hầu hết Vector Database hiện đại sử dụng thuật toán HNSW (Hierarchical Navigable Small World)~\cite{malkov2020hnsw} --- một thuật toán tìm kiếm láng giềng gần đúng (Approximate Nearest Neighbor -- ANN) dạng đồ thị đa tầng, cho phép truy vấn với độ trễ dưới 10\,ms trên tập dữ liệu hàng triệu vector~\cite{annbenchmarks}.
+
+\subsection{Vai trò trong RAG, Semantic Search và AI Systems}
+
+Pipeline RAG hoạt động theo hai pha. \textbf{Pha indexing}: tài liệu PDF được cắt thành chunk, embedding thành vector, và lưu vào Vector Database kèm metadata. \textbf{Pha answering}: câu hỏi của người dùng được embedding thành query vector, Vector Database tìm Top-K chunk gần nghĩa nhất, các chunk này được đưa vào prompt để LLM sinh câu trả lời có ngữ cảnh. Nếu tầng retrieval trả về context sai, LLM sẽ không có bằng chứng đáng tin cậy để trả lời chính xác dù bản thân mô hình rất mạnh.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=0.4cm and 0.3cm, scale=0.88, transform shape]
+    \node[flowbox, fill=blue!10, minimum width=1.6cm] (pdf) {PDF};
+    \node[flowbox, right=of pdf, minimum width=1.6cm] (chunks) {Chunks};
+    \node[flowbox, right=of chunks, fill=green!10, minimum width=1.9cm] (embed) {Embedding};
+    \node[flowbox, right=of embed, fill=orange!10, minimum width=1.9cm] (db) {Vector DB};
+    \node[flowbox, below=1cm of pdf, fill=blue!10, minimum width=1.6cm] (q) {Question};
+    \node[flowbox, right=of q, fill=green!10, minimum width=1.7cm] (search) {ANN Search};
+    \node[flowbox, right=of search, minimum width=1.7cm] (ctx) {Top-K};
+    \node[flowbox, right=of ctx, fill=orange!10, minimum width=1.8cm] (llm) {LLM Answer};
+    \draw[flowarrow] (pdf) -- (chunks);
+    \draw[flowarrow] (chunks) -- (embed);
+    \draw[flowarrow] (embed) -- (db);
+    \draw[flowarrow] (q) -- (search);
+    \draw[flowarrow] (db.south) -- ++(0,-0.48) -| (search.north);
+    \draw[flowarrow] (search) -- (ctx);
+    \draw[flowarrow] (ctx) -- (llm);
+\end{tikzpicture}
+\caption{Pipeline RAG: pha indexing (trên) và pha answering (dưới).}
+\label{fig:rag-pipeline}
+\end{figure}
+
+\subsection{Mục tiêu báo cáo}
+
+Báo cáo này phân tích ba hệ quản trị Vector Database tiêu biểu --- \textbf{Qdrant}, \textbf{Weaviate} và \textbf{Milvus} --- từ góc nhìn kiến trúc, khả năng truy hồi, chi phí vận hành và tiêu chí lựa chọn cho production. Nhóm không chỉ tổng hợp lý thuyết mà còn xây dựng hệ thống benchmark full-stack để đánh giá bằng số liệu thực nghiệm.

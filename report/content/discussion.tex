@@ -1,0 +1,33 @@
+\section{Thảo luận}
+\label{sec:discussion}
+
+Kết quả kiến trúc và benchmark cho thấy lựa chọn Vector Database nên bắt đầu từ ràng buộc hệ thống thay vì từ một bảng xếp hạng tuyệt đối. Ba công cụ đều có thể dùng cho RAG, nhưng mỗi công cụ tối ưu cho một điểm khác nhau: Qdrant cho filtered retrieval gọn nhẹ, Weaviate cho hybrid search, Milvus cho scale và HA.
+
+\begin{table}[H]
+\centering
+\caption{Ma trận quyết định theo use case.}
+\label{tab:decision-matrix}
+\begin{tabularx}{\textwidth}{p{3.6cm}X}
+\toprule
+\textbf{Use case} & \textbf{Khuyến nghị} \\
+\midrule
+Prototype / POC nhanh & Qdrant, vì triển khai 1 container, wrapper ít dòng code và DX score thấp nhất trong codebase nhóm. \\
+RAG cần keyword + semantic & Weaviate, vì native hybrid search kết hợp BM25 và vector trong cùng query surface~\cite{weaviatehybrid}. \\
+Enterprise hoặc corpus rất lớn & Milvus, vì kiến trúc disaggregated hỗ trợ scale per-role, HA và Knowhere/GPU/DiskANN~\cite{milvusarch}. \\
+Multi-tenant, ACL, filter-heavy RAG & Qdrant, vì payload-oriented design và filter-aware search path phù hợp metadata filtering. \\
+Team nhỏ, ít kinh nghiệm vận hành & Qdrant hoặc Weaviate; Milvus chỉ nên chọn khi nhu cầu scale đủ lớn để bù chi phí ops. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Nếu ưu tiên latency và vận hành gọn, Qdrant là lựa chọn dễ bắt đầu nhất. Nếu chất lượng retrieval phụ thuộc cả từ khóa chính xác lẫn ngữ nghĩa, Weaviate có lợi thế thiết kế dù dense-only benchmark không phải điểm mạnh nhất của nó. Nếu bài toán cần corpus rất lớn, replica, GPU hoặc tách riêng ingest/search/indexing, Milvus có kiến trúc phù hợp hơn, nhưng yêu cầu đội vận hành hiểu Docker/Kubernetes và các dependency như object storage, etcd, message queue.
+
+Với Qdrant, điểm mạnh không chỉ nằm ở thời gian truy vấn trong snapshot mà còn ở đường cong vận hành. Mô hình collection/point/payload dễ ánh xạ sang ứng dụng RAG thông thường: mỗi chunk có embedding, metadata và nội dung tham chiếu. Khi hệ thống cần lọc theo tenant, nguồn dữ liệu, vai trò người dùng hoặc thời gian cập nhật, payload index giúp giảm phần không gian tìm kiếm trước hoặc trong quá trình truy vấn tùy kế hoạch thực thi. Trong nhóm ba công cụ, Qdrant vì vậy là lựa chọn hợp lý khi team muốn đi từ prototype lên production nhỏ-vừa mà chưa muốn gánh nhiều service phụ trợ. Trade-off là khi yêu cầu scale ngang phức tạp, nhiều pipeline ingest song song hoặc HA nghiêm ngặt, Qdrant cần được thiết kế cụm cẩn thận hơn thay vì chỉ dựa vào cấu hình single-node.
+
+Với Weaviate, cần đọc benchmark dense-only một cách công bằng. Nếu chỉ đo vector search trên cùng embedding, Weaviate có thể không luôn dẫn đầu về latency hoặc footprint; tuy nhiên đó chưa phải workload đại diện nhất cho công cụ này. Weaviate mạnh khi truy vấn gồm cả ngữ nghĩa và từ khóa: ví dụ tài liệu pháp lý có số điều khoản, catalog có mã sản phẩm, ticket hỗ trợ có tên lỗi hoặc log code. Trong các trường hợp này, BM25/inverted index và vector HNSW bổ sung cho nhau, còn hybrid score giúp hệ thống tránh bỏ sót kết quả chứa token chính xác nhưng embedding không đủ gần. Vì vậy, Weaviate phù hợp với đội phát triển muốn một API retrieval giàu tính năng hơn là một ANN service tối giản.
+
+Với Milvus, lợi thế xuất hiện rõ hơn khi corpus và tổ chức vận hành đủ lớn. Kiến trúc tách Proxy, Coordinator, QueryNode, DataNode và IndexNode cho phép scale từng vai trò theo bottleneck: nhiều truy vấn thì tăng QueryNode, ingest nặng thì chú ý DataNode và message queue, build index lớn thì tăng IndexNode hoặc cân nhắc GPU. Đây là kiểu thiết kế quen thuộc trong Big Data system: đổi sự đơn giản của single binary lấy khả năng mở rộng, cô lập lỗi và tối ưu theo workload. Do đó, kết luận ``Milvus đạt Recall@K cao nhất trong snapshot'' nên được hiểu là tín hiệu về năng lực index/search, không đồng nghĩa Milvus luôn là lựa chọn tốt nhất cho mọi team.
+
+Một cách đọc thực dụng hơn là xem benchmark như bài kiểm tra điều kiện. Snapshot 10K synthetic chunks và 200 queries giúp so sánh hành vi tương đối trong môi trường kiểm soát, nhưng chưa bao phủ dữ liệu đa miền, update/delete liên tục, phân quyền phức tạp, warm-up cache dài hạn hoặc failure recovery. Khi áp dụng vào dự án thật, nhóm nên tái chạy quy trình đánh giá trên dữ liệu nội bộ, giữ nguyên ba nhóm chỉ số: chất lượng truy hồi, chi phí tài nguyên và độ phức tạp vận hành. Lựa chọn tốt nhất không phải công cụ thắng nhiều cột nhất, mà là công cụ có điểm mạnh trùng với ràng buộc quan trọng nhất của hệ thống.
+
+Xu hướng chung của Vector Database là tiến tới retrieval đa tín hiệu: dense vector, sparse/keyword, metadata filter, reranking và multi-modal embedding. Vì vậy, benchmark trong báo cáo nên được xem là quy trình đánh giá có thể lặp lại, không phải kết luận cuối cùng cho mọi phiên bản và workload.

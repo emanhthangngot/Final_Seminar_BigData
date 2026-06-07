@@ -1,0 +1,142 @@
+\begin{thebibliography}{10}
+
+\bibitem{annbenchmarks}
+{ANN Benchmarks}.
+\newblock {ANN} benchmarks --- benchmarking nearest neighbors.
+\newblock \url{https://ann-benchmarks.com/}, 2024.
+\newblock Accessed: 2026-05-24.
+
+\bibitem{cormack2009rrf}
+Gordon~V. Cormack, Charles L.~A. Clarke, and Stefan B{\"u}ttcher.
+\newblock Reciprocal rank fusion outperforms condorcet and individual rank
+  learning methods.
+\newblock In {\em Proceedings of the 32nd International ACM SIGIR Conference},
+  pages 758--759, 2009.
+
+\bibitem{dbengines}
+{DB-Engines}.
+\newblock {DB-Engines} ranking of vector {DBMS}.
+\newblock \url{https://db-engines.com/en/ranking/vector+dbms}, 2026.
+\newblock Accessed: 2026-05-24.
+
+\bibitem{jegou2011pq}
+Herv{\'e} J{\'e}gou, Matthijs Douze, and Cordelia Schmid.
+\newblock Product quantization for nearest neighbor search.
+\newblock {\em IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  33(1):117--128, 2011.
+
+\bibitem{lewis2020rag}
+Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir
+  Karpukhin, Naman Goyal, Heinrich K{\"u}ttler, Mike Lewis, Wen tau Yih, Tim
+  Rockt{\"a}schel, Sebastian Riedel, and Douwe Kiela.
+\newblock Retrieval-augmented generation for knowledge-intensive {NLP} tasks.
+\newblock In {\em Advances in Neural Information Processing Systems}, 2020.
+
+\bibitem{malkov2020hnsw}
+Yury~A. Malkov and Dmitry~A. Yashunin.
+\newblock Efficient and robust approximate nearest neighbor search using
+  hierarchical navigable small world graphs.
+\newblock {\em IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  42(4):824--836, 2020.
+
+\bibitem{milvusdiskann}
+{Milvus}.
+\newblock {DiskANN} index --- {Milvus} documentation.
+\newblock \url{https://milvus.io/docs/disk_index.md}, 2024.
+\newblock Accessed: 2026-05-24.
+
+\bibitem{milvusknowheredocs}
+{Milvus}.
+\newblock Knowhere --- {Milvus} vector search engine.
+\newblock \url{https://milvus.io/docs/knowhere.md}, 2024.
+\newblock Accessed: 2026-05-24.
+
+\bibitem{milvusarch}
+{Milvus}.
+\newblock Milvus architecture overview.
+\newblock \url{https://milvus.io/docs/architecture_overview.md}, 2024.
+\newblock Accessed: 2026-05-24.
+
+\bibitem{milvusdocs}
+{Milvus}.
+\newblock Milvus documentation.
+\newblock \url{https://milvus.io/docs}, 2024.
+\newblock Accessed: 2026-05-24.
+
+\bibitem{qdrantfilter}
+{Qdrant}.
+\newblock Filtrable {HNSW} --- {Qdrant} articles.
+\newblock \url{https://qdrant.tech/articles/filtrable-hnsw/}, 2023.
+\newblock Accessed: 2026-05-24.
+
+\bibitem{qdrantdocs}
+{Qdrant}.
+\newblock Qdrant documentation.
+\newblock \url{https://qdrant.tech/documentation/}, 2024.
+\newblock Accessed: 2026-05-24.
+
+\bibitem{qdrantstorage}
+{Qdrant}.
+\newblock Qdrant storage architecture.
+\newblock \url{https://qdrant.tech/documentation/concepts/storage/}, 2024.
+\newblock Accessed: 2026-05-24.
+
+\bibitem{qdrantpricing}
+{Qdrant}.
+\newblock Qdrant cloud pricing.
+\newblock \url{https://qdrant.tech/pricing/}, 2026.
+\newblock Accessed: 2026-06-07.
+
+\bibitem{robertson2009bm25}
+Stephen Robertson and Hugo Zaragoza.
+\newblock The probabilistic relevance framework: {BM25} and beyond.
+\newblock {\em Foundations and Trends in Information Retrieval}, 3(4):333--389,
+  2009.
+
+\bibitem{subramanya2019diskann}
+Suhas~Jayaram Subramanya, Fnu Devvrit, Harsha~Vardhan Simhadri, Ravishankar
+  Krishnawamy, and Rohan Kadekodi.
+\newblock {DiskANN}: Fast accurate billion-point nearest neighbor search on a
+  single node.
+\newblock In {\em Advances in Neural Information Processing Systems}, 2019.
+
+\bibitem{wang2021milvus}
+Jianguo Wang, Xiaomeng Yi, Rentong Guo, Hai Jin, Peng Xu, Shengjun Li, Xiangyu
+  Wang, Xiangzhou Guo, Chengming Li, Xiaohai Xu, Kun Yu, Yuxing Yuan, Yinghao
+  Zou, Jiquan Long, Yudong Cai, Zhenxiang Li, Zhifeng Zhang, Yihua Mo, Jun Gu,
+  Ruiyi Jiang, Yi~Wei, and Charles Xie.
+\newblock Milvus: A purpose-built vector data management system.
+\newblock In {\em Proceedings of the 2021 International Conference on
+  Management of Data (SIGMOD)}, pages 2614--2627, 2021.
+
+\bibitem{weaviatedocs}
+{Weaviate}.
+\newblock Weaviate documentation.
+\newblock \url{https://weaviate.io/developers/weaviate}, 2024.
+\newblock Accessed: 2026-05-24.
+
+\bibitem{weaviatehybrid}
+{Weaviate}.
+\newblock Weaviate hybrid search.
+\newblock \url{https://weaviate.io/developers/weaviate/search/hybrid}, 2024.
+\newblock Accessed: 2026-05-24.
+
+\bibitem{weaviatemodules}
+{Weaviate}.
+\newblock Weaviate modules.
+\newblock \url{https://weaviate.io/developers/weaviate/modules}, 2024.
+\newblock Accessed: 2026-05-24.
+
+\bibitem{weaviatepricing}
+{Weaviate}.
+\newblock Weaviate pricing.
+\newblock \url{https://weaviate.io/pricing.html}, 2026.
+\newblock Accessed: 2026-06-07.
+
+\bibitem{zillizfree}
+{Zilliz}.
+\newblock Try zilliz cloud for free.
+\newblock \url{https://docs.zilliz.com/docs/free-trials}, 2026.
+\newblock Accessed: 2026-06-07.
+
+\end{thebibliography}

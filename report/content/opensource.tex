@@ -1,0 +1,27 @@
+\section{Mã nguồn mở và chính sách giá}
+\label{sec:opensource}
+
+Cả ba công cụ đều là mã nguồn mở với license permissive, cho phép sử dụng thương mại, chỉnh sửa và triển khai self-host mà không phải trả phí bản quyền. Vì vậy, câu hỏi ``công cụ nào miễn phí'' không đủ để ra quyết định production. Chi phí thực tế thường đến từ RAM, CPU/GPU, storage, backup, monitoring, network, SLA và năng lực vận hành. Bảng~\ref{tab:opensource-pricing} tóm tắt license, mô hình triển khai và free tier cloud tại thời điểm nhóm hoàn thiện báo cáo.
+
+\begin{table}[H]
+\centering
+\caption{So sánh license, self-host và chính sách cloud/free tier.}
+\label{tab:opensource-pricing}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+\textbf{Tiêu chí} & \textbf{Qdrant} & \textbf{Weaviate} & \textbf{Milvus} \\
+\midrule
+License & Apache 2.0 & BSD 3-Clause & Apache 2.0 \\
+Self-host & Docker/Kubernetes & Docker/Kubernetes/Helm & Docker/Kubernetes/Operator \\
+Managed cloud & Qdrant Cloud & Weaviate Cloud & Zilliz Cloud \\
+Free tier/trial & 1 node, 1GB RAM, 4GB disk~\cite{qdrantpricing} & Always free: 100,000 objects, 1GB memory, 10GB disk~\cite{weaviatepricing} & 5GB storage, khoảng 1M vectors~\cite{zillizfree} \\
+Governance & Company-led & Company-led & LF AI \& Data Foundation \\
+Hàm ý chi phí & Ops nhẹ khi scale vừa & Trả phí cho cloud/DX/module & Hạ tầng lớn hơn nhưng scale tốt \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Khác biệt đáng chú ý nằm ở governance. Milvus là \textit{graduated project} của LF AI \& Data Foundation, nên hình ảnh cộng đồng của Milvus gắn với một foundation độc lập hơn là một vendor duy nhất. Qdrant và Weaviate vẫn theo mô hình company-led: mã nguồn mở, nhưng roadmap và cloud service chủ yếu do công ty sáng lập điều phối. Trong bối cảnh học thuật, khác biệt này không làm công cụ nào ``mở'' hơn theo nghĩa license, nhưng ảnh hưởng đến cách cộng đồng đóng góp, mức độ phụ thuộc vendor và chiến lược support dài hạn.
+
+Với nhóm triển khai thực tế, self-host là lựa chọn hợp lý để học kiến trúc và benchmark vì có thể kiểm soát version, cấu hình, tài nguyên và dữ liệu. Managed cloud phù hợp hơn khi yêu cầu chính là giảm thời gian vận hành hoặc cần SLA. Free tier của ba nền tảng nên được xem là môi trường prototype; khi dữ liệu tăng lên hàng triệu đến hàng trăm triệu vector, chi phí chính sẽ chuyển sang bộ nhớ, storage, replication, backup và network egress.

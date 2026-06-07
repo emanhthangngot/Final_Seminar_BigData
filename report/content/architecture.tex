@@ -1,0 +1,112 @@
+\section{Phân tích kiến trúc}
+\label{sec:architecture}
+
+Ba hệ thống cùng dùng ANN index để tìm vector gần nhất, nhưng khác nhau ở đường đi dữ liệu và ranh giới vận hành. Qdrant tối ưu sự gọn nhẹ và filtered search; Weaviate đặt hybrid retrieval vào query engine; Milvus tách rời compute/storage để mở rộng theo vai trò.
+
+\subsection{Qdrant: gọn nhẹ cho filtered retrieval}
+\label{sec:qdrant}
+
+Qdrant được thiết kế theo hướng tối giản vận hành: một binary Rust, ít dependency, hỗ trợ REST và gRPC. Đơn vị lưu trữ chính là \textbf{segment}; mỗi segment giữ vector storage, payload storage và HNSW index riêng. Write-Ahead Log bảo vệ write path, còn storage có thể dùng RAM hoặc memory-mapped files để tận dụng OS cache~\cite{qdrantdocs,qdrantstorage}.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=0.42cm, scale=0.86, transform shape]
+    \node[flowbox, fill=blue!12, minimum width=5.0cm] (api) {REST / gRPC API};
+    \node[flowbox, below=of api, minimum width=5.0cm] (planner) {Query Planner};
+    \node[flowbox, below=of planner, fill=green!10, minimum width=5.0cm] (segment) {Segment: Vector + Payload + HNSW};
+    \node[flowbox, below=of segment, fill=orange!10, minimum width=5.0cm] (storage) {WAL + Memmap/On-Disk Storage};
+    \draw[flowarrow] (api) -- (planner);
+    \draw[flowarrow] (planner) -- (segment);
+    \draw[flowarrow] (segment) -- (storage);
+\end{tikzpicture}
+\caption{Kiến trúc Qdrant xoay quanh segment và payload-aware query path.}
+\label{fig:qdrant-arch}
+\end{figure}
+
+Kỹ thuật đáng chú ý nhất của Qdrant là tối ưu \textbf{filtered vector search}. Trong RAG production, truy vấn thường kèm điều kiện metadata như tenant, ACL, loại tài liệu hoặc timestamp. Nếu filter được xử lý quá sớm, graph HNSW có thể bị thưa; nếu filter hậu xử lý, Top-K hợp lệ có thể thiếu. Qdrant giải quyết bằng payload index, query planner và filter-aware search path để chọn chiến lược phù hợp theo độ chọn lọc của filter~\cite{qdrantfilter}. Ngoài ra, Qdrant hỗ trợ scalar/product/binary quantization, giúp giảm bộ nhớ hoặc tăng tốc so sánh khi chấp nhận đánh đổi một phần độ chính xác~\cite{jegou2011pq}.
+
+Trade-off của Qdrant là rõ ràng: triển khai gọn, latency thấp và footprint nhỏ trong benchmark của nhóm, nhưng không có BM25 native như Weaviate và không đặt trọng tâm vào kiến trúc phân tán nhiều thành phần như Milvus. Vì vậy Qdrant phù hợp nhất khi bài toán cần filtered retrieval, ít ops và thời gian tích hợp nhanh.
+
+\subsection{Weaviate: hybrid retrieval trong cùng query engine}
+\label{sec:weaviate}
+
+Weaviate được thiết kế như một nền tảng vector database \textit{AI-native}. Trong mỗi shard, Weaviate quản lý đồng thời object store, vector HNSW index và inverted index cho BM25/property filtering~\cite{weaviatedocs}. Cách đặt lexical index và vector index cạnh nhau cho phép Weaviate phục vụ native Hybrid Search thay vì phải ghép thêm search engine bên ngoài.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=0.38cm, scale=0.76, transform shape]
+    \node[flowbox, fill=green!12, minimum width=5.1cm] (query) {Query Engine};
+    \node[flowbox, below left=0.55cm and -0.1cm of query, fill=blue!10, minimum width=1.65cm] (obj) {Object\\Store};
+    \node[flowbox, below=0.55cm of query, fill=green!10, minimum width=1.65cm] (hnsw) {Vector\\HNSW};
+    \node[flowbox, below right=0.55cm and -0.1cm of query, fill=orange!10, minimum width=1.65cm] (bm25) {BM25\\Index};
+    \node[flowbox, below=1.05cm of hnsw, minimum width=5.1cm] (fusion) {Hybrid Fusion: BM25 + Vector};
+    \draw[flowarrow] (query) -- (obj);
+    \draw[flowarrow] (query) -- (hnsw);
+    \draw[flowarrow] (query) -- (bm25);
+    \draw[flowarrow] (obj) -- (fusion);
+    \draw[flowarrow] (hnsw) -- (fusion);
+    \draw[flowarrow] (bm25) -- (fusion);
+\end{tikzpicture}
+\caption{Weaviate kết hợp object store, HNSW và BM25 trong cùng shard.}
+\label{fig:weaviate-arch}
+\end{figure}
+
+Hybrid Search hữu ích vì vector search mạnh với paraphrase nhưng có thể bỏ sót mã lỗi, tên riêng hoặc ký hiệu; BM25 lại mạnh với keyword chính xác nhưng không hiểu đồng nghĩa~\cite{robertson2009bm25}. Weaviate dùng tham số $\alpha$ để cân bằng hai tín hiệu và có thể hợp nhất ranking bằng các kỹ thuật như Reciprocal Rank Fusion~\cite{weaviatehybrid,cormack2009rrf}. Hệ module như vectorizer, reranker và generative integration cũng giúp team RAG dựng pipeline nhanh hơn~\cite{weaviatemodules}.
+
+Trade-off của Weaviate là hy sinh một phần độ trễ dense-only để đổi lấy hybrid search và trải nghiệm phát triển thuận tiện hơn. Trong snapshot benchmark của nhóm, Weaviate không nhanh nhất khi chỉ đo dense retrieval, nhưng lợi thế thiết kế của nó nằm ở trường hợp cần keyword evidence và semantic similarity trong cùng API.
+
+\subsection{Milvus: phân tán để phục vụ scale lớn}
+\label{sec:milvus}
+
+Milvus chọn kiến trúc \textit{disaggregated}: tách access, coordinator, worker và storage layer~\cite{wang2021milvus,milvusarch}. Proxy nhận request; RootCoord/DataCoord/QueryCoord điều phối metadata, segment và load balancing; DataNode xử lý ingest, QueryNode phục vụ search, IndexNode build index; storage layer dùng object storage, etcd và message queue. Thiết kế này làm deployment phức tạp hơn, nhưng cho phép scale từng vai trò độc lập.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=0.35cm, scale=0.76, transform shape]
+    \node[flowbox, fill=orange!12, minimum width=5.2cm] (proxy) {Proxy / Access Layer};
+    \node[flowbox, below=of proxy, fill=blue!10, minimum width=5.2cm] (coord) {RootCoord / DataCoord / QueryCoord};
+    \node[flowbox, below left=0.5cm and -0.2cm of coord, minimum width=1.65cm] (data) {DataNode};
+    \node[flowbox, below=0.5cm of coord, minimum width=1.65cm] (query) {QueryNode};
+    \node[flowbox, below right=0.5cm and -0.2cm of coord, minimum width=1.65cm] (index) {IndexNode};
+    \node[flowbox, below=1.05cm of query, fill=green!10, minimum width=5.2cm] (storage) {Object Storage + MQ + etcd};
+    \draw[flowarrow] (proxy) -- (coord);
+    \draw[flowarrow] (coord) -- (data);
+    \draw[flowarrow] (coord) -- (query);
+    \draw[flowarrow] (coord) -- (index);
+    \draw[flowarrow] (data) -- (storage);
+    \draw[flowarrow] (query) -- (storage);
+    \draw[flowarrow] (index) -- (storage);
+\end{tikzpicture}
+\caption{Milvus tách compute khỏi storage để scale theo từng vai trò.}
+\label{fig:milvus-arch}
+\end{figure}
+
+Bên dưới Milvus là \textbf{Knowhere}, lớp trừu tượng bao bọc Faiss, HNSWlib, DiskANN và đường GPU khi có CUDA~\cite{milvusknowheredocs,milvusdiskann,subramanya2019diskann}. Vòng đời dữ liệu cũng cần chú ý khi benchmark: dữ liệu đi qua \texttt{insert}, \texttt{flush}, sealed segment, build index, \texttt{load}, rồi mới search tối ưu~\cite{milvusdocs}. Nếu gộp các bước này vào một metric duy nhất, latency có thể bị diễn giải sai.
+
+Trade-off của Milvus là scale và HA đổi lấy ops complexity. Milvus phù hợp khi corpus lớn, cần replica, GPU hoặc mở rộng từng vai trò; ngược lại, với prototype nhỏ, nhiều dependency như etcd, MinIO và message queue có thể là chi phí vận hành không cần thiết.
+
+\subsection{So sánh kiến trúc}
+\label{sec:arch-comparison}
+
+\begin{table}[H]
+\centering
+\caption{So sánh kiến trúc và trade-off chính.}
+\label{tab:arch-compare}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+\textbf{Tiêu chí} & \textbf{Qdrant} & \textbf{Weaviate} & \textbf{Milvus} \\
+\midrule
+Mô hình & Single binary & Single database service & Distributed services \\
+Tối ưu chính & Filtered vector search & Hybrid retrieval & Enterprise scale \\
+Index nổi bật & HNSW + payload index & HNSW + BM25 index & Knowhere: Faiss/HNSWlib/DiskANN \\
+Keyword/hybrid & Sparse vectors, external logic & BM25 native + vector & Dense/sparse, tùy cấu hình \\
+Schema & Payload linh hoạt & Schema/module oriented & FieldSchema chặt \\
+Vận hành & Gọn, 1 container & Gọn, nhiều module tùy chọn & Phức tạp hơn, 3+ container \\
+Điểm mạnh & Latency/filter/DX & Hybrid RAG ergonomics & HA, GPU, scale per-role \\
+Đánh đổi & Ít native lexical search & Dense-only overhead cao hơn & Ops complexity cao \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Tóm lại, Qdrant phù hợp khi ràng buộc chính là filtered retrieval và vận hành gọn; Weaviate phù hợp khi cần kết hợp keyword với semantic search; Milvus phù hợp khi scale và HA quan trọng hơn độ đơn giản triển khai.

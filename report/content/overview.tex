@@ -1,0 +1,39 @@
+\section{Tổng quan ba hệ quản trị Vector Database}
+\label{sec:overview}
+
+Qdrant, Weaviate và Milvus đều thuộc nhóm Vector Database: hệ quản trị dữ liệu được thiết kế để lưu trữ embedding, lập chỉ mục vector nhiều chiều và trả về các điểm dữ liệu gần nhất theo độ đo như cosine similarity, dot product hoặc Euclidean distance. Trong hệ thống Big Data hiện đại, lớp này thường đứng giữa data lake/document store và ứng dụng AI, đặc biệt trong Retrieval-Augmented Generation (RAG), semantic search, recommendation và duplicate detection. Điểm quan trọng là ba công cụ không tối ưu cho cùng một ràng buộc. Qdrant nhấn mạnh filtered vector search gọn nhẹ; Weaviate nhấn mạnh trải nghiệm xây dựng ứng dụng AI/hybrid RAG; Milvus nhấn mạnh scale phân tán và tách vai trò compute/storage.
+
+\subsection{Qdrant}
+
+Qdrant là Vector Database viết bằng \textbf{Rust}, ra đời năm 2021 bởi Qdrant Solutions GmbH. Triết lý thiết kế của Qdrant là \textit{performance-first}: giảm overhead runtime, giữ footprint gọn và tối ưu truy vấn có payload filter~\cite{qdrantdocs}. Trong mô hình dữ liệu của Qdrant, vector đi kèm payload dạng key-value; payload này có thể được lập chỉ mục để hỗ trợ các truy vấn như ``tìm đoạn văn gần nhất nhưng chỉ trong tài liệu của phòng ban X''. Vì vậy, Qdrant phù hợp với knowledge base hoặc RAG nhiều tenant, nơi mỗi truy vấn thường cần lọc theo quyền truy cập, loại tài liệu, domain hoặc thời gian.
+
+\subsection{Weaviate}
+
+Weaviate là Vector Database viết bằng \textbf{Go}, ra đời năm 2019 bởi Weaviate B.V. Điểm khác biệt cốt lõi là định hướng \textit{AI-native}: ngoài vector HNSW index, Weaviate còn duy trì inverted index cho keyword search và cung cấp module tích hợp vectorizer, reranker, generative model~\cite{weaviatedocs,weaviatemodules}. Weaviate vì thế không chỉ là một ANN engine, mà còn là một retrieval platform có schema object, hybrid score và GraphQL/REST API. Công cụ này phù hợp khi RAG cần kết hợp semantic search với keyword chính xác như tên riêng, mã sản phẩm, thuật ngữ chuyên ngành hoặc các truy vấn có phần ``literal match'' quan trọng.
+
+\subsection{Milvus}
+
+Milvus là Vector Database sử dụng \textbf{C++} cho lõi tính toán và \textbf{Go} cho các service điều phối, ra đời năm 2019 và là \textit{graduated project} của LF AI \& Data Foundation~\cite{wang2021milvus}. Milvus theo hướng \textit{distributed-first}: tách compute khỏi storage, chia vai trò thành Proxy, Coordinator, QueryNode, DataNode và IndexNode. Thay vì tối ưu cho trải nghiệm một container, Milvus tối ưu cho hệ thống enterprise có nhiều collection, corpus rất lớn, yêu cầu HA hoặc cần tận dụng nhiều loại index như IVF, HNSW, DiskANN/GPU thông qua Knowhere~\cite{milvusdocs}.
+
+\subsection{Mức độ phổ biến trong cộng đồng}
+
+GitHub stars, số lượng issue/PR, connector trong ecosystem AI và DB-Engines ranking chỉ nên xem là tín hiệu cộng đồng, không phải bằng chứng trực tiếp về chất lượng kỹ thuật. Tại thời điểm nhóm tổng hợp tài liệu cho seminar, Milvus có cộng đồng GitHub lớn nhất trong ba công cụ và xuất hiện sớm trong nhiều benchmark ANN/vector database; Qdrant tăng trưởng nhanh nhờ làn sóng RAG/AI agents và cách triển khai gọn; Weaviate nổi bật trong nhóm developer xây dựng hybrid RAG và ứng dụng có schema object rõ ràng~\cite{dbengines}. Vì vậy, trong bối cảnh Big Data, ba công cụ đều phổ biến nhưng phổ biến ở các phân khúc khác nhau: Milvus thiên về enterprise/scale, Qdrant thiên về production RAG gọn nhẹ, Weaviate thiên về developer-facing AI application.
+
+\begin{table}[H]
+\centering
+\caption{Tổng quan thiết kế và phân khúc sử dụng của ba Vector Database.}
+\label{tab:overview}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+\textbf{Tiêu chí} & \textbf{Qdrant} & \textbf{Weaviate} & \textbf{Milvus} \\
+\midrule
+Năm ra đời & 2021 & 2019 & 2019 \\
+Ngôn ngữ core & Rust & Go & C++ \& Go \\
+Trọng tâm thiết kế & Filtered vector search & Hybrid RAG platform & Enterprise vector scale \\
+Đối tượng phù hợp & Team cần latency/footprint gọn & Ứng dụng cần semantic + keyword & Hệ thống lớn cần HA/scale \\
+Kỹ thuật nổi bật & Payload index, query planner & HNSW + inverted index + modules & Disaggregated services, Knowhere \\
+Tín hiệu cộng đồng & Tăng trưởng nhanh trong RAG & Mạnh ở AI app/hybrid search & Cộng đồng lớn, LF AI \& Data \\
+\bottomrule
+\end{tabular}}
+\end{table}

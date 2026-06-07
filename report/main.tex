@@ -1,0 +1,75 @@
+\documentclass[12pt]{article}
+
+\usepackage{hcmus-report-template}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc,shapes.geometric}
+
+% Disable indentation on new paragraphs
+\setlength{\parindent}{0pt}
+
+% Line spacing 1.5
+\renewcommand{\baselinestretch}{1.5}
+
+% Graphic paths
+\graphicspath{{img/}{../slide/images/}{../screenshot/}}
+
+% Times New Roman equivalent
+\usepackage{mathptmx}
+
+% Define course name, report name and report title.
+\newcommand{\coursename}{Nhập môn Dữ liệu lớn}
+\newcommand{\reportname}{A Triple of Vector Stores: Qdrant, Weaviate, and Milvus}
+\newcommand{\reporttitle}{BÁO CÁO SEMINAR CUỐI KÌ}
+
+\newcommand{\studentname}{Lê Xuân Trí - 23120099 \\ Nguyễn Hồ Anh Tuấn - 23120185 \\ Trần Hữu Kim Thành - 23120166 \\ Trần Lê Trung Trực - 23120180}
+\newcommand{\teachername}{Thầy Trần Huy Bân}
+
+% Header
+\lhead{\reporttitle}
+\rhead{
+Trường Đại học Khoa học Tự nhiên - ĐHQG HCM\\
+\coursename
+}
+
+% TikZ styles for architecture diagrams
+\tikzset{
+  flowbox/.style={draw=black!50, fill=blue!5, rounded corners=2pt, align=center, minimum height=0.7cm, inner xsep=5pt, inner ysep=3pt, font=\small},
+  flowarrow/.style={-{Stealth[length=2.2mm]}, thick, draw=black!70},
+}
+
+% ============ DOCUMENT ============
+\begin{document}
+
+\pagenumbering{roman}
+\input{content/title}
+
+\cleardoublepage
+\setcounter{page}{2}
+\pagestyle{empty} 
+
+\tableofcontents
+
+\cleardoublepage
+\pagenumbering{arabic} 
+\pagestyle{plain}
+
+\setcounter{page}{1}
+
+\input{content/introduction}
+\input{content/overview}
+\input{content/opensource}
+\input{content/architecture}
+\input{content/evaluation}
+\input{content/discussion}
+\input{content/conclusion}
+
+% References
+\input{ref/ref.tex}
+\end{document}

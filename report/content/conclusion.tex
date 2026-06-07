@@ -1,0 +1,8 @@
+\section{Kết luận}
+\label{sec:conclusion}
+
+Báo cáo đã phân tích Qdrant, Weaviate và Milvus từ bốn góc nhìn: mục tiêu thiết kế, trạng thái mã nguồn mở/chi phí, kiến trúc nội bộ và kết quả benchmark trong hệ thống RAG của nhóm. Cả ba đều là lựa chọn nghiêm túc cho vector search, nhưng chúng tối ưu cho ba ràng buộc khác nhau.
+
+Trong snapshot 10K synthetic chunks, Milvus đạt Recall@K cao nhất; Qdrant nổi bật ở footprint, latency filter và DX; Weaviate nổi bật ở native hybrid retrieval. Do đó, kết luận quan trọng không phải là chọn một ``winner'' tuyệt đối, mà là chọn công cụ theo use case: Qdrant cho filtered RAG gọn nhẹ, Weaviate cho keyword + semantic retrieval, và Milvus cho scale/HA.
+
+Đóng góp chính của nhóm là xây dựng một quy trình đánh giá có thể lặp lại: cùng corpus, cùng query, cùng tham số index, cùng pipeline và cùng dashboard trực quan hóa. Đây là cách tiếp cận thực tế hơn so với việc so sánh công cụ chỉ bằng mô tả marketing hoặc một metric đơn lẻ.
