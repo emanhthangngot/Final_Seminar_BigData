@@ -57,3 +57,7 @@ backend/__pycache__/
 
 # Embedding Caches
 data/.embed_cache/
+
+# Tests
+tests/
+backend/tests/
